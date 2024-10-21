@@ -1,10 +1,11 @@
-class Obstacles extends GameObject{
-    Obstacles(int x,int y){
+class Obstacle extends GameObject{
+    Obstacle(int x,int y){
         super(x,y);
+        this.symbol = "[X]";
     }
 }
-class Stationary_obstacles extends Obstacles{
-    Stationary_obstacles(int x,int y){
+class StationaryObstacle extends Obstacle{
+    StationaryObstacle(int x,int y){
         super(x,y);
     }
     public Object getDetails(){
@@ -12,9 +13,10 @@ class Stationary_obstacles extends Obstacles{
     }
 
 }
-class Npc_movers extends Obstacles{
-    Npc_movers(int x,int y){
+class NPC extends Obstacle{
+    NPC(int x,int y){
         super(x,y);
+        this.symbol="[N]";
     }
     public Object getDetails(){
         return null;
