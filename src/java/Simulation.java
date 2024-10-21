@@ -1,11 +1,18 @@
 import java.util.Random;
 
 public class Simulation {
+    static {
+        System.setProperty("java.library.path", "C:/Users/Unnath Ch/Desktop/EV-Fleet-Simulator/");
+        System.loadLibrary("astar_jni");
+    }
     private Map map;
+    private PathfindingVisualizer pathfindingVisualizer;
 
     public Simulation() {
         initializeMap();
+        pathfindingVisualizer = new PathfindingVisualizer(map);
     }
+
 
     private void initializeMap() {
         map = new Map(20, 20);
@@ -46,9 +53,13 @@ public class Simulation {
             System.out.println();
         }
     }
-
+    public void runPathfindingSimulation() {
+        PathfindingVisualizer visualizer = new PathfindingVisualizer(map);
+        visualizer.visualizePathfindingStepByStep();
+    }
+    
     public static void main(String[] args) {
         Simulation sim = new Simulation();
-        sim.displayMap();
+        sim.runPathfindingSimulation();
     }
 }

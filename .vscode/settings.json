@@ -1,0 +1,9 @@
+{
+    "java.project.sourcePaths": [
+        "src/java",
+        "src"
+    ],
+    "files.associations": {
+        "vector": "cpp"
+    }
+}

@@ -45,6 +45,16 @@ public class Map {
         return object == null || !(object instanceof Obstacle);
     }
 
+    public boolean[][] getObstacleMap() {
+        boolean[][] obstacleMap = new boolean[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                obstacleMap[y][x] = !isWalkable(x, y);
+            }
+        }
+        return obstacleMap;
+    }
+
     public void printMap() {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
