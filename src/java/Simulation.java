@@ -22,11 +22,13 @@ public class Simulation {
 
     private void addObstacles() {
         Random random = new Random();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             int x = random.nextInt(20);
             int y = random.nextInt(20);
-            Obstacle obstacle = new Obstacle(x, y);
-            map.setObject(x, y, obstacle);
+            if(map.getObject(x, y)==null) {
+                Obstacle obstacle = new Obstacle(x, y);
+                map.setObject(x, y, obstacle);
+            }
         }
     }
 
@@ -55,7 +57,7 @@ public class Simulation {
     }
     public void runPathfindingSimulation() {
         PathfindingVisualizer visualizer = new PathfindingVisualizer(map);
-        visualizer.visualizePathfindingStepByStep();
+        visualizer.runPathfindingSimulation();
     }
     
     public static void main(String[] args) {

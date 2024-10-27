@@ -31,7 +31,9 @@ public class PathfindingVisualizer {
 
             boolean[][] obstacleMap = map.getObstacleMap();
             long[] path = findPath(startX, startY, endX, endY, obstacleMap);
-
+            for(int i = 0; i < path.length; i+=2) {
+                System.out.println("(" + path[i] + ", " + path[i+1] + ")");
+            }
             visualizePath(path);
         } finally {
             scanner.close();

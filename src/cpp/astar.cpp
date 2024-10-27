@@ -5,7 +5,7 @@ std::vector<Node> AStar::findPath(int startX, int startY, int endX, int endY, co
     Node startNode(startX, startY);
     Node endNode(endX, endY);
 
-    std::priority_queue<std::pair<double, Node *>, std::vector<std::pair<double, Node *>>, std::greater<std::pair<double, Node *>>> openSet;
+    std::priority_queue<std::pair<int, Node *>, std::vector<std::pair<int, Node *>>, std::greater<std::pair<int, Node *>>> openSet;
     std::unordered_map<int, Node> allNodes;
 
     startNode.hCost = heuristic(startNode, endNode);
@@ -26,7 +26,7 @@ std::vector<Node> AStar::findPath(int startX, int startY, int endX, int endY, co
 
         for (const Node &neighbor : getNeighbors(*current, map))
         {
-            double tentativeGCost = current->gCost + 1;
+            int tentativeGCost = current->gCost + 1;
             int neighborKey = nodeToKey(neighbor);
 
             if (allNodes.find(neighborKey) == allNodes.end() || tentativeGCost < allNodes[neighborKey].gCost)
@@ -46,9 +46,15 @@ std::vector<Node> AStar::findPath(int startX, int startY, int endX, int endY, co
     return {}; // No path found
 }
 
-double AStar::heuristic(const Node &a, const Node &b)
+int AStar::heuristic(const Node &a, const Node &b)
 {
-    return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2));
+    //return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2));
+    //optimized the heuristic
+    int dstX = abs(a.x - b.x);
+	int dstY = abs(a.y - b.y);
+	if (dstX > dstY)
+		return 14*dstY + 10* (dstX-dstY);
+	return 14*dstX + 10 * (dstY-dstX);
 }
 
 std::vector<Node> AStar::getNeighbors(const Node &node, const std::vector<std::vector<bool>> &map)
@@ -77,7 +83,7 @@ std::vector<std::vector<Node>> AStar::findPathWithSteps(int startX, int startY, 
     Node endNode(endX, endY);
     std::vector<std::vector<Node>> steps;
 
-    std::priority_queue<std::pair<double, Node *>, std::vector<std::pair<double, Node *>>, std::greater<std::pair<double, Node *>>> openSet;
+    std::priority_queue<std::pair<int, Node *>, std::vector<std::pair<int, Node *>>, std::greater<std::pair<int, Node *>>> openSet;
     std::unordered_map<int, Node> allNodes;
 
     startNode.hCost = heuristic(startNode, endNode);
@@ -99,7 +105,7 @@ std::vector<std::vector<Node>> AStar::findPathWithSteps(int startX, int startY, 
 
         for (const Node &neighbor : getNeighbors(*current, map))
         {
-            double tentativeGCost = current->gCost + 1;
+            int tentativeGCost = current->gCost + 1;
             int neighborKey = nodeToKey(neighbor);
 
             if (allNodes.find(neighborKey) == allNodes.end() || tentativeGCost < allNodes[neighborKey].gCost)

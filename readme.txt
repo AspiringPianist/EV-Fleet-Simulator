@@ -29,3 +29,9 @@ Note:
     When rendering GameObjects on the map, use the get_details() method
     to retrieve the necessary information for each object type.
 """
+
+Command to update the astar_jni.dll:
+& "g++" "-I`"C:\Program Files\Java\jdk-23\include`"" "-I`"C:\Program Files\Java\jdk-23\include\win32`"" -shared -o astar_jni.dll src/cpp/astar_jni.cpp src/cpp/astar.cpp "-Wl,--add-stdcall-alias"
+
+Run the simulation.java using this command:
+(Click run in VSCode)
