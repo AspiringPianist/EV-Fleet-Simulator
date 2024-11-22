@@ -6,5 +6,6 @@
     "files.associations": {
         "vector": "cpp",
         "utility": "cpp"
-    }
+    },
+    "java.configuration.updateBuildConfiguration": "interactive"
 }
