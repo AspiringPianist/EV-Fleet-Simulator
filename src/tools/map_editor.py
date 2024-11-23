@@ -61,7 +61,21 @@ class RoadMapEditor:
         for key, connections in self.connections.items():
             x, y = map(int, key.split(','))
             if len(connections) > 2:  # Intersection detected
+                # Add the intersection point
                 self.signals.add((x, y))
+                
+                # Add the eight surrounding squares
+                surrounding = [
+                    (x-1, y-1), (x-1, y), (x-1, y+1),
+                    (x, y-1),             (x, y+1),
+                    (x+1, y-1), (x+1, y), (x+1, y+1)
+                ]
+                
+                # Add valid surrounding squares (within grid bounds)
+                for sx, sy in surrounding:
+                    if 1 <= sx <= self.grid_size and 1 <= sy <= self.grid_size:
+                        self.signals.add((sx, sy))
+                        
         self.redraw_roads()
 
     def save_signals(self):
