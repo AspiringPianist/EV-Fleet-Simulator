@@ -18,12 +18,12 @@ public class GameMap {
     public GameMap() {
         roadMapParser = new RoadMapParser();
         roadNetwork = new HashMap<>();
-        loadMap("src/main/resources/static/map.csv");
+        loadMap("src/main/resources/static/map.csv", "src/main/resources/static/signal.csv");
     }
 
-    private void loadMap(String filename) {
+    private void loadMap(String filename, String signalMapPath) {
         try {
-            roadMapParser.parseCSV(filename);
+            roadMapParser.parseCSV(filename, signalMapPath);
             this.height = roadMapParser.getRows();
             this.width = roadMapParser.getCols();
             
@@ -86,6 +86,10 @@ public class GameMap {
 
     public Node getRoadNode(int x, int y) {
         return roadNetwork.get((x + 1) + "," + (y + 1));
+    }
+
+    public TrafficNode getTrafficNode(int x, int y) {
+        return (TrafficNode) roadNetwork.get((x + 1) + "," + (y + 1));
     }
 
     public List<Node> getValidMoves(int x, int y) {

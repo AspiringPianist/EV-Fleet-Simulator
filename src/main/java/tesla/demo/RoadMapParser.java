@@ -53,9 +53,9 @@ public class RoadMapParser {
         this.nodes = new HashMap<>();
     }
 
-    public void parseCSV(String filePath) throws IOException {
+    public void parseCSV(String filePath, String signalMapPath) throws IOException {
         List<String[]> grid = new ArrayList<>();
-        
+        List<String[]> signalGrid = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -70,6 +70,20 @@ public class RoadMapParser {
                 grid.add(row);
             }
         }
+        try (BufferedReader br = new BufferedReader(new FileReader(signalMapPath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                // Split the line by comma, but not commas within quotes
+                String[] row = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
+                
+                // Remove quotes and clean the data
+                for (int i = 0; i < row.length; i++) {
+                    row[i] = row[i].replace("\"", "").trim();
+                }
+                
+                signalGrid.add(row);
+            }
+        }
         
         this.rows = grid.size();
         this.cols = grid.get(0).length;
@@ -78,15 +92,22 @@ public class RoadMapParser {
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 String cellValue = grid.get(i)[j];
+                String signalCellValue = signalGrid.get(i)[j];
                 if (!cellValue.equals("0") && !cellValue.equals("497")) {
                     // Create node for current position (i+1, j+1 for 1-based indexing)
-                    Node currentNode = getOrCreateNode(i + 1, j + 1, "Node");
+                    Node currentNode = null;
+                    if(signalCellValue.equals("1") || signalCellValue.equals("2")) {
+                        currentNode = getOrCreateNode(i + 1, j + 1, "TrafficNode", Integer.parseInt(signalCellValue)-1);
+                    }
+                    else {
+                        currentNode = getOrCreateNode(i + 1, j + 1, "Node", Integer.parseInt(signalCellValue)-1);
+                    }
                     // Parse destinations
                     List<int[]> coordinates = parseCoordinates(cellValue);
                     
                     // Create edges for each destination
                     for (int[] coord : coordinates) {
-                        Node destNode = getOrCreateNode(coord[0], coord[1], "Node");
+                        Node destNode = getOrCreateNode(coord[0], coord[1], "Node", Integer.parseInt(signalCellValue)-1);
                         if (!currentNode.neighbors.contains(destNode)) {
                             currentNode.neighbors.add(destNode);
                         }
@@ -121,9 +142,13 @@ public class RoadMapParser {
         
         return coordinates;
     }
+    
 
-    private Node getOrCreateNode(int x, int y,String type) {
+    private Node getOrCreateNode(int x, int y,String type, int trafficType) {
         String key = x + "," + y;
+        if(type.equals("TrafficNode")){
+            return nodes.computeIfAbsent(key, k -> new TrafficNode(x, y,"TrafficNode", trafficType));
+        }
         return nodes.computeIfAbsent(key, k -> new Node(x, y,type));
     }
     public void printGraph() {
@@ -191,7 +216,7 @@ public class RoadMapParser {
     public static void main(String[] args) {
         RoadMapParser parser = new RoadMapParser();
         try {
-            parser.parseCSV("src/main/resources/static/map.csv");
+            parser.parseCSV("src/main/resources/static/map.csv", "src/main/resources/static/signal.csv");
             parser.printGraph();
             
             // Example of finding path between two nodes

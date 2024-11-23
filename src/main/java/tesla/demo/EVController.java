@@ -38,14 +38,20 @@ public class EVController {
         ev.setEndLocation(request.getEndX(), request.getEndY());
         ev.setName(request.getName());
         
+        // Calculate and store path immediately
+        long[] pathArray = pathfinder.findPath(
+            ev.getStartX(),
+            ev.getStartY(),
+            ev.getEndX(),
+            ev.getEndY()
+        );
+        List<PathNode> path = convertToPathNodes(pathArray);
+        ev.setPath(path);
+        
         evMap.put(ev.getName(), ev);
         return ResponseEntity.ok(ev);
     }
 
-    @GetMapping("/all")
-    public List<EV> getAllEVs() {
-        return new ArrayList<>(evMap.values());
-    }
 
     @PostMapping("/{evName}/start")
     public List<PathNode> startEV(@PathVariable String evName) {
@@ -53,16 +59,9 @@ public class EVController {
         if (ev == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "EV not found");
         }
-
-        long[] path = pathfinder.findPath(
-            ev.getStartX(),
-            ev.getStartY(),
-            ev.getEndX(),
-            ev.getEndY()
-        );
-
-        return convertToPathNodes(path);
+        return ev.getPath(); // Return the pre-calculated path
     }
+
 
     private List<PathNode> convertToPathNodes(long[] path) {
         List<PathNode> nodes = new ArrayList<>();

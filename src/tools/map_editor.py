@@ -17,7 +17,10 @@ class RoadMapEditor:
         self.mouse_position = None
         self.last_update_time = 0
         self.update_interval = 16  # ~60 FPS
-        self.signals = set()  # Store traffic signal locations
+        #self.signals = set()  # Store traffic signal locations
+        # In __init__ method, change signals to store type:
+        self.signals = {}  # Dictionary to store {(x,y): signal_type}
+
         
         # Main frame
         self.frame = ttk.Frame(root)
@@ -37,7 +40,13 @@ class RoadMapEditor:
         ttk.Radiobutton(self.toolbar, text="Two-Way Road", variable=self.road_type, value="two_way").pack(side='left', padx=5)
         ttk.Radiobutton(self.toolbar, text="One-Way Road", variable=self.road_type, value="one_way").pack(side='left', padx=5)
         
-        # File operations
+        self.signal_type = tk.StringVar(value="1")
+        ttk.Radiobutton(self.toolbar, text="Signal Type 1", variable=self.signal_type, value="1").pack(side='left', padx=5)
+        ttk.Radiobutton(self.toolbar, text="Signal Type 2", variable=self.signal_type, value="2").pack(side='left', padx=5)
+        ttk.Radiobutton(self.toolbar, text="Place Signals", variable=self.mode, value="signal").pack(side='left', padx=5)
+
+        
+        # File operations        
         ttk.Button(self.toolbar, text="Load CSV", command=self.load_map).pack(side='right', padx=5)
         ttk.Button(self.toolbar, text="Save", command=self.save_map).pack(side='right', padx=5)
         ttk.Button(self.toolbar, text="Clear All", command=self.clear_map).pack(side='right', padx=5)
@@ -84,8 +93,10 @@ class RoadMapEditor:
             for i in range(self.grid_size):
                 row = []
                 for j in range(self.grid_size):
-                    row.append('1' if (i+1, j+1) in self.signals else '0')
+                    pos = (i+1, j+1)
+                    row.append(self.signals.get(pos, '0'))
                 writer.writerow(row)
+
 
     def save_map(self):
         with open('src/main/resources/static/map.csv', 'w', newline='') as file:
@@ -205,6 +216,9 @@ class RoadMapEditor:
     def handle_cell(self, cell):
         if self.mode.get() == "erase":
             self.erase_cell(cell)
+        elif self.mode.get() == "signal":
+            self.signals[cell] = self.signal_type.get()
+            self.redraw_roads()
 
     def erase_cell(self, cell):
         key = f"{cell[0]},{cell[1]}"
@@ -219,19 +233,46 @@ class RoadMapEditor:
         self.dragging = False
         self.last_drag_cell = None
 
+    # Update the redraw_roads method to add visual indicators
     def redraw_roads(self):
-        self.canvas.delete('road', 'intersection', 'signal')
+        self.canvas.delete('road', 'intersection', 'signal', 'signal_text')
+        # Draw existing roads first
         for start, ends in self.connections.items():
             x1, y1 = map(int, start.split(','))
             for end in ends:
                 self.draw_road_segment((x1, y1), end)
-        for signal in self.signals:
-            x = (signal[1] - 1) * self.cell_size
-            y = (signal[0] - 1) * self.cell_size
+                
+        # Draw signals with enhanced visual feedback
+        for pos, signal_type in self.signals.items():
+            x = (pos[1] - 1) * self.cell_size
+            y = (pos[0] - 1) * self.cell_size
+            color = 'green' if signal_type == '1' else 'orange'
+            
+            # Draw signal background
             self.canvas.create_rectangle(
                 x, y, x + self.cell_size, y + self.cell_size,
-                fill='green', tags='signal'
+                fill=color, tags='signal'
             )
+            
+            # Draw signal type number
+            self.canvas.create_text(
+                x + self.cell_size/2,
+                y + self.cell_size/2,
+                text=signal_type,
+                fill='white',
+                font=('Arial', 12, 'bold'),
+                tags='signal_text'
+            )
+            
+            # Add circular indicator
+            self.canvas.create_oval(
+                x + 2, y + 2,
+                x + self.cell_size - 2, y + self.cell_size - 2,
+                outline='white',
+                width=2,
+                tags='signal'
+            )
+
 
     def draw_road_segment(self, start, end):
         start_x = (start[1] - 1) * self.cell_size + self.cell_size//2
