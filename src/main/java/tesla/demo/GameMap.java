@@ -27,9 +27,10 @@ public class GameMap {
             this.height = roadMapParser.getRows();
             this.width = roadMapParser.getCols();
             
-            // Store all road nodes in our network
+            // Store all road nodes in our network using 1-based indexing
             for (Node node : roadMapParser.getAllNodes()) {
-                roadNetwork.put((node.x) + "," + (node.y), node);
+                // Ensure coordinates match map_editor.py's 1-based indexing
+                roadNetwork.put(node.x + "," + node.y, node);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -88,10 +89,14 @@ public class GameMap {
         return roadNetwork.get((x + 1) + "," + (y + 1));
     }
 
-    public TrafficNode getTrafficNode(int x, int y) {
-        return (TrafficNode) roadNetwork.get((x + 1) + "," + (y + 1));
+    public Node getTrafficNode(int x, int y) {
+        Node node = roadNetwork.get((x + 1) + "," + (y + 1));
+        if (node instanceof TrafficNode) {
+            node.type="TrafficNode";
+            return (TrafficNode) node;
+        }
+        return node;
     }
-
     public List<Node> getValidMoves(int x, int y) {
         Node currentNode = getRoadNode(x, y);
         return currentNode != null ? currentNode.neighbors : Collections.emptyList();

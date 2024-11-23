@@ -22,9 +22,12 @@ import org.springframework.http.HttpStatus;
 public class EVController {
     private Map<String, EV> evMap;
     private PathfindingVisualizer pathfinder;
+    private TrafficManager trafficManager;
     public EVController() {
         evMap = new HashMap<>();
         pathfinder = new PathfindingVisualizer(GameMap.getInstance());
+        trafficManager = new TrafficManager();
+
     }
     @PostMapping("/new")
     public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
@@ -51,7 +54,36 @@ public class EVController {
         evMap.put(ev.getName(), ev);
         return ResponseEntity.ok(ev);
     }
+    @PostMapping("/{evName}/canMove")
+    public ResponseEntity<?> canEVMove(@PathVariable String evName) {
+        try {
+            EV ev = evMap.get(evName);
+            if (ev == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("EV not found: " + evName);
+            }
+    
+            if (ev.currentPathIndex >= ev.getPath().size()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Invalid path index for EV: " + evName);
+            }
+    
+            boolean canMove = trafficManager.canEVMove(ev);
+            return ResponseEntity.ok(canMove);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error processing movement: " + e.getMessage());
+        }
+    }
 
+    @GetMapping("/traffic/signals")
+    public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
+        List<TrafficSignalState> states = TrafficManager.trafficLights.stream()
+            .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen()))
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(states);
+    }
 
     @PostMapping("/{evName}/start")
     public List<PathNode> startEV(@PathVariable String evName) {
@@ -61,6 +93,17 @@ public class EVController {
         }
         return ev.getPath(); // Return the pre-calculated path
     }
+    @GetMapping("/all")
+    public ResponseEntity<List<EV>> getAllEVs() {
+        List<EV> evList = new ArrayList<>(evMap.values());
+        return ResponseEntity.ok(evList);
+    }
+    @PostMapping("/traffic/change")
+    public ResponseEntity<Void> changeTrafficSignals() {
+        trafficManager.changeSignals();
+        return ResponseEntity.ok().build();
+    }
+
 
 
     private List<PathNode> convertToPathNodes(long[] path) {
@@ -92,3 +135,16 @@ class EVCreateRequest {
     public int getCharge() { return charge; }
     public int getChargingRate() { return chargingRate; }
 }
+
+class TrafficSignalState {
+    public int x;
+    public int y;
+    public boolean isGreen;
+    
+    public TrafficSignalState(int x, int y, boolean isGreen) {
+        this.x = x;
+        this.y = y;
+        this.isGreen = isGreen;
+    }
+}
+

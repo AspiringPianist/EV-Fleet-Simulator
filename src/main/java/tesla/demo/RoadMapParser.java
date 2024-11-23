@@ -147,7 +147,9 @@ public class RoadMapParser {
     private Node getOrCreateNode(int x, int y,String type, int trafficType) {
         String key = x + "," + y;
         if(type.equals("TrafficNode")){
-            return nodes.computeIfAbsent(key, k -> new TrafficNode(x, y,"TrafficNode", trafficType));
+            TrafficNode newNode = new TrafficNode(x, y,"TrafficNode", trafficType);
+            TrafficManager.getInstance().addTrafficNode(newNode);
+            return nodes.computeIfAbsent(key, k -> newNode);
         }
         return nodes.computeIfAbsent(key, k -> new Node(x, y,type));
     }

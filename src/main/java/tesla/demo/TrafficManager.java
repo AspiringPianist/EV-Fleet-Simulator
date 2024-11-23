@@ -36,97 +36,104 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class TrafficManager {
-    public static ArrayList<TrafficNode> trafficLights;
-    private Map<TrafficNode, Deque<EV>> vehicleDeques;
+    public static TrafficManager instance;
+    public static ArrayList<TrafficNode> trafficLights  = new ArrayList<TrafficNode>();
+    // private  Map<TrafficNode, Deque<EV>> vehicleDeques = new HashMap<>();
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<TrafficNode, Node> trafficNodeToCompletionNode;
     //private Map<String, EV> evMap;
 
-    public TrafficManager(Map<String, EV> evMap) {
-        trafficLights = new ArrayList<TrafficNode>();
-        vehicleDeques = new HashMap<>();
+    public TrafficManager() {
+        //trafficLights = new ArrayList<TrafficNode>();
+        // vehicleDeques = new HashMap<>();
         //this.evMap = evMap;
+    }
+
+    public static TrafficManager getInstance() {
+        if (instance == null) {
+            instance = new TrafficManager();
+        }
+        return instance;
     }
 
     public void addTrafficNode(TrafficNode node) {
         trafficLights.add(node);
-        vehicleDeques.put(node, new LinkedList<>());
+        // vehicleDeques.put(node, new LinkedList<>());
+        // node.addEv();
     }
 
     public boolean canEVMove(EV ev) {
+        // System.out.println("I AM DYING");
         //remove from deque if first EV reaches completion node
         //--------------------------------Section for adding evs to queue-----------------------------------------------
-            TrafficNode currentNode = GameMap.getInstance().getTrafficNode(ev.getPath().get(ev.currentPathIndex).getX(),
+            Node currentNode = GameMap.getInstance().getTrafficNode(ev.getPath().get(ev.currentPathIndex).getX(),
                     ev.getPath().get(ev.currentPathIndex).getY()); 
-
-            if (currentNode.type.equals("TrafficNode")) {
-                if (!currentNode.isGreen() || !isDequeEmpty(currentNode)) {
-                    addToDeque(currentNode, ev);
+            //this means we go to else case
+            System.out.println(currentNode.type);
+            if (currentNode.type.equals("TrafficNode") ) {
+                System.out.println("ENTERED WHAT IS THIS FUCK OFF");
+                TrafficNode trafficNode = (TrafficNode)currentNode;
+                if (!trafficNode.isGreen() || !trafficNode.getDeque().isEmpty()) {
+                    trafficNode.addToDeque(ev);
                     return false;
                 }
-
-                if(currentNode.isGreen()) {
-                    trafficNodeToCompletionNode.put(currentNode, GameMap.getInstance().getTrafficNode(ev.getPath().get(ev.currentPathIndex + 3).getX(),ev.getPath().get(ev.currentPathIndex + 3).getY()));
-                    //this EV is at first position in queue, so it can move to next node and is kept in queue until it crosses end of intersection which is 3 + trafficNodePathIndex
-                    return true;
-                    // //find the queue of this node
-                    // Queue<EV> queue = vehicleQueues.get(currentNode);
-                    //until first ev reaches compleition node, keep it in queue and all subsequent evs in queue cannot move, once it reaches completion node, remove first ev frmo queue
-                    
+        
+                if(trafficNode.isGreen()) {
+                    Node completionNode = GameMap.getInstance().getTrafficNode(ev.getPath().get(ev.currentPathIndex + 3).getX(),
+                            ev.getPath().get(ev.currentPathIndex + 3).getY());
+                    trafficNodeToCompletionNode.put(trafficNode, completionNode);
+                    return false;
                 }
-            } else {
-                // next node is not TrafficNode
-                // check last item item in queue, if the last item in queue is the next node of
-                // ev, then we have to add ev to queue, because it cannot move
-                // if the last item in queue is not the next node of ev, then we dont have to
-                // add ev to queue, because it can move
-                // first get the traffic node, then find its queue
-
-                // step 1. getting traffic node of the ev
+            }else {
                 int currentPathIndex = ev.currentPathIndex;
                 for (int pathIndex = currentPathIndex; pathIndex < ev.getPath().size(); pathIndex++) {
                     PathNode position = ev.getPath().get(pathIndex);
                     Node trafficNode = GameMap.getInstance().getTrafficNode(position.getX(), position.getY());
-                    if (trafficNode.type.equals("TrafficNode")) {
-                        currentNode = (TrafficNode) trafficNode;
+                    if (trafficNode instanceof TrafficNode) {
+                        currentNode = trafficNode;
                         break;
                     }
                 }
-                // step 2. getting queue of the traffic node
-                Deque<EV> Deque = vehicleDeques.get(currentNode);
-                //check if the first ev in the Deque has reached completion or not
-                //check if this is  EV in queue
-                EV firstEV = Deque.pollFirst();
-                EV secondEV = Deque.peekFirst();
-                //add firstEV back to Dequeu start
-                Deque.addFirst(firstEV);
-                if(ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),firstEV.getPath().get(firstEV.currentPathIndex).getY()) != trafficNodeToCompletionNode.get(currentNode)) {
-                    //addToDeque(currentNode, ev);
-                    return false;
-                }
-                if(ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),firstEV.getPath().get(firstEV.currentPathIndex).getY()) == trafficNodeToCompletionNode.get(currentNode)) {
-                    //addToDeque(currentNode, ev);
-                    Deque.removeFirst();
-                    trafficNodeToCompletionNode.put(currentNode, null); //reset completion node
-                    return true;
-                    //this will move the second EV to the trafficnode and set the completion node accordingly
-                }
-                // step 3. checking if the last item in Deque is the next node of ev
-                if (!Deque.isEmpty()) {
-                    EV lastEV = Deque.peekLast();
-                    PathNode lastEVInDequePosition = lastEV.getPath().get(lastEV.currentPathIndex);
-                    PathNode nextEVPosition = ev.getPath().get(ev.currentPathIndex + 1);
-                    if (lastEVInDequePosition == nextEVPosition) {
-                        addToDeque(currentNode, ev);
-                        return false;
+                
+                if (currentNode instanceof TrafficNode) {
+                    TrafficNode trafficNode = (TrafficNode)currentNode;
+                    // Deque<EV> Deque = vehicleDeques.get(trafficNode);
+                    Deque<EV> Deque=trafficNode.getDeque();
+                    // if(Deque!=null && !Deque.isEmpty()) {
+                    if(!Deque.isEmpty()) {
+                        EV firstEV = Deque.pollFirst();
+                        EV secondEV = Deque.peekFirst();
+                        Deque.addFirst(firstEV);
+                        
+                        if(ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),
+                                firstEV.getPath().get(firstEV.currentPathIndex).getY()) != trafficNodeToCompletionNode.get(trafficNode)) {
+                            return false;
+                        }
+                        
+                        if(ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),
+                                firstEV.getPath().get(firstEV.currentPathIndex).getY()) == trafficNodeToCompletionNode.get(trafficNode)) {
+                            Deque.removeFirst();
+                            trafficNodeToCompletionNode.put(trafficNode, null);
+                            return false;
+                        }
+                    }
+                    
+                    // if (Deque!=null && !Deque.isEmpty()) {
+                    if (!Deque.isEmpty()) {
+                        EV lastEV = Deque.peekLast();
+                        PathNode lastEVInDequePosition = lastEV.getPath().get(lastEV.currentPathIndex);
+                        PathNode nextEVPosition = ev.getPath().get(ev.currentPathIndex + 1);
+                        if (lastEVInDequePosition == nextEVPosition) {
+                            // addToDeque(trafficNode, ev);
+                            trafficNode.addToDeque(ev);
+                            return false;
+                        }
                     }
                 }
                 return true;
             }
-
-
             return true;
-    }
+        }
 
     // private TrafficNode getCurrentTrafficNode(PathNode position) {
     // for(TrafficNode node : trafficLights) {
@@ -136,14 +143,14 @@ public class TrafficManager {
     // }
     // return null;
     // }
-
+/*
     private void addToDeque(TrafficNode node, EV ev) {
         vehicleDeques.get(node).offer(ev);
     }
 
     private boolean isDequeEmpty(TrafficNode node) {
         return vehicleDeques.get(node).isEmpty();
-    }
+    }*/
 
     // public void processDeques() {
     //     for (TrafficNode node : trafficLights) {
@@ -157,18 +164,18 @@ public class TrafficManager {
     //     }
     // }
 
-    // public void changeSignals() {
-    //     for (int i = 0; i < trafficLights.size(); i++) {
-    //         trafficLights.get(i).changeSignal();
-    //     }
-    //     processDeques();
-    // }
-
-    // public void startTrafficCycle() {
-    //     scheduler.scheduleAtFixedRate(() -> {
-    //         changeSignals();
-    //     }, 0, 5, TimeUnit.SECONDS);
-    // }
+    public void startTrafficCycle() {
+        scheduler.scheduleAtFixedRate(() -> {
+            changeSignals();
+        }, 0, 10, TimeUnit.SECONDS);
+    }
+    
+    public void changeSignals() {
+        for (TrafficNode node : trafficLights) {
+            node.changeSignal();
+        }
+    }
+    
 
     // Handle random priority for simultaneous arrivals
     // private void handleSimultaneousArrivals(TrafficNode node) {

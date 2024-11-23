@@ -11,15 +11,18 @@ const config = {
 
 const game = new Phaser.Game(config);
 let evSprites = new Map();
+let trafficLightSprites = new Map();
 let scene;
 
 function create() {
     scene = this;
-    scene.graphics = scene.add.graphics();
+    scene.mapLayer = scene.add.graphics();
+    scene.signalLayer = scene.add.graphics();
     
     loadMap();
     setupEventListeners();
     loadExistingEVs();
+    startTrafficSignalUpdates();
 }
 
 function loadMap() {
@@ -39,8 +42,6 @@ function loadExistingEVs() {
                     createEVSprite(ev);
                     addEVToList(ev);
                 });
-            } else {
-                console.log('No EVs found');
             }
         });
 }
@@ -71,22 +72,15 @@ function setupEventListeners() {
     });
 }
 
-
 function createEVSprite(ev) {
-    if (!ev || !ev.startX || !ev.startY) {
-        console.log("Invalid EV data received:", ev);
-        return;
-    }
-   
     const sprite = scene.add.circle(
-        (ev.startY * 20) + 10,  // Add half tile size (10) to center in the cell
-        (ev.startX * 20) + 10,  // Add half tile size (10) to center in the cell
+        (ev.startY * 20) + 10,
+        (ev.startX * 20) + 10,
         5,
         getEVTypeColor(ev.type)
-    );
+    ).setDepth(2);
     evSprites.set(ev.name, sprite);
 }
-
 
 function getEVTypeColor(type) {
     const colors = {
@@ -130,31 +124,52 @@ function simulateEVMovement(evName, path) {
     function moveStep() {
         if (pathIndex >= path.length - 1) return;
         
-        const nextPos = path[pathIndex + 1];
-        scene.tweens.add({
-            targets: sprite,
-            x: nextPos.y * 20 + 10,
-            y: nextPos.x * 20 + 10,
-            duration: 10,
-            ease: 'Linear',
-            onComplete: () => {
-                pathIndex++;
-                moveStep();
+        fetch(`/api/ev/${evName}/canMove`, {
+            method: 'POST'
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Error response:', text);
+                    throw new Error(text);
+                });
             }
-        });
+            return response.json();
+        })
+        .then(canMove => {
+            console.log(`Movement check for ${evName}: ${canMove}`);
+            if (canMove) {
+                const nextPos = path[pathIndex + 1];
+                scene.tweens.add({
+                    targets: sprite,
+                    x: nextPos.y * 20 + 10,
+                    y: nextPos.x * 20 + 10,
+                    duration: 10,
+                    ease: 'Linear',
+                    onComplete: () => {
+                        pathIndex++;
+                        moveStep();
+                    }
+                });
+            } else {
+                setTimeout(moveStep, 100);
+            }
+        })
+        .catch(error => console.error('Movement error:', error));
     }
     
     moveStep();
 }
 
+
 function drawMap(scene, mapData) {
-    scene.graphics.clear();
+    scene.mapLayer.clear();
     const tileSize = 20;
 
     mapData.roads.forEach(road => {
-        const color = road.oneWay ? 0x444444 : 0x666666;
-        scene.graphics.lineStyle(2, color);
-        scene.graphics.strokeRect(
+        const color = road.oneWay ? 0x888888 : 0xAAAAAA;
+        scene.mapLayer.lineStyle(2, color);
+        scene.mapLayer.strokeRect(
             road.y * tileSize,
             road.x * tileSize,
             tileSize,
@@ -162,6 +177,59 @@ function drawMap(scene, mapData) {
         );
     });
 }
+
+function startTrafficSignalUpdates() {
+    console.log('Starting traffic signal updates');
+    updateTrafficSignals();
+    // Update more frequently for smoother transitions
+    setInterval(updateTrafficSignals, 1000); // Check every second
+}
+
+function updateTrafficSignals() {
+    fetch('/api/ev/traffic/signals')
+        .then(response => response.json())
+        .then(signals => {
+            signals.forEach(signal => {
+                let sprite = trafficLightSprites.get(`${signal.x},${signal.y}`);
+                if (!sprite) {
+                    // Create traffic light with enhanced visibility
+                    sprite = scene.add.circle(
+                        signal.y * 20 + 10,
+                        signal.x * 20 + 10,
+                        5,
+                        signal.isGreen ? 0x00ff00 : 0xff0000
+                    ).setDepth(2);
+                    
+                    // Add outer ring for glow effect
+                    const glowRing = scene.add.circle(
+                        signal.y * 20 + 10,
+                        signal.x * 20 + 10,
+                        8,
+                        signal.isGreen ? 0x00ff00 : 0xff0000,
+                        0.3
+                    ).setDepth(1);
+                    
+                    trafficLightSprites.set(`${signal.x},${signal.y}`, {
+                        light: sprite,
+                        glow: glowRing
+                    });
+                } else {
+                    const color = signal.isGreen ? 0x00ff00 : 0xff0000;
+                    sprite.light.setFillStyle(color);
+                    sprite.glow.setFillStyle(color);
+                }
+            });
+        });
+}
+function startTrafficSignalUpdates() {
+    updateTrafficSignals();
+    setInterval(() => {
+        fetch('/api/ev/traffic/change', { method: 'POST' })
+            .then(() => updateTrafficSignals());
+    }, 10000);
+}
+
+
 
 function update() {
     // Real-time updates if needed
