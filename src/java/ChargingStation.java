@@ -18,8 +18,7 @@ public class ChargingStation extends GameObject {
     }
 
     public void chargeVehicle(EV vehicle) {
-        System.out
-                .println("Received EV Type : " + vehicle.type + " | Location (" + location.x + ", " + location.y + ")");
+        System.out.println("Received EV Type : " + vehicle.type + " | Location (" + location.x + ", " + location.y + ")");
         // charge over time (time concept)
         while (!vehicle.fullCharge())
             vehicle.charge();

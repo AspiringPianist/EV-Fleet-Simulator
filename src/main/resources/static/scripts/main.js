@@ -135,7 +135,7 @@ function simulateEVMovement(evName, path) {
             targets: sprite,
             x: nextPos.y * 20 + 10,
             y: nextPos.x * 20 + 10,
-            duration: 500,
+            duration: 10,
             ease: 'Linear',
             onComplete: () => {
                 pathIndex++;

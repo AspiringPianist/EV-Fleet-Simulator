@@ -6,12 +6,14 @@ class Node {
     int x, y;
 
     List<Node> neighbors;
+    public String type;
     //TODO
     // is stop location
     // is it red
-    public Node(int x, int y) {
+    public Node(int x, int y,String type) {
         this.x = x;
         this.y = y;
+        this.type=type;
         this.neighbors = new ArrayList<>();
     }
 
@@ -68,7 +70,7 @@ public class RoadMapParser {
                 grid.add(row);
             }
         }
-
+        
         this.rows = grid.size();
         this.cols = grid.get(0).length;
 
@@ -76,17 +78,15 @@ public class RoadMapParser {
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 String cellValue = grid.get(i)[j];
-                
                 if (!cellValue.equals("0") && !cellValue.equals("497")) {
                     // Create node for current position (i+1, j+1 for 1-based indexing)
-                    Node currentNode = getOrCreateNode(i + 1, j + 1);
-                    
+                    Node currentNode = getOrCreateNode(i + 1, j + 1, "Node");
                     // Parse destinations
                     List<int[]> coordinates = parseCoordinates(cellValue);
                     
                     // Create edges for each destination
                     for (int[] coord : coordinates) {
-                        Node destNode = getOrCreateNode(coord[0], coord[1]);
+                        Node destNode = getOrCreateNode(coord[0], coord[1], "Node");
                         if (!currentNode.neighbors.contains(destNode)) {
                             currentNode.neighbors.add(destNode);
                         }
@@ -122,11 +122,10 @@ public class RoadMapParser {
         return coordinates;
     }
 
-    private Node getOrCreateNode(int x, int y) {
+    private Node getOrCreateNode(int x, int y,String type) {
         String key = x + "," + y;
-        return nodes.computeIfAbsent(key, k -> new Node(x, y));
+        return nodes.computeIfAbsent(key, k -> new Node(x, y,type));
     }
-
     public void printGraph() {
         System.out.println("Road Network Graph:");
         List<Node> sortedNodes = new ArrayList<>(nodes.values());
@@ -176,6 +175,10 @@ public class RoadMapParser {
         return reachable;
     }
 
+    public int totalNodes() {
+        return nodes.size();
+    }
+
     private void dfsReachable(Node current, Set<Node> visited) {
         visited.add(current);
         for (Node neighbor : current.neighbors) {
@@ -201,6 +204,21 @@ public class RoadMapParser {
                 // Print reachable nodes from start
                 Set<Node> reachable = parser.findReachableNodes(start);
                 System.out.println("\nNumber of reachable nodes from (2,2): " + reachable.size());
+            }
+            // Print total number of nodes
+            System.out.println("\nTotal number of nodes: " + parser.totalNodes());
+            //check if all nodes are reachable from any node
+            boolean allNodesReachable = true;
+            for (Node node : parser.getAllNodes()) {
+                Set<Node> reachableNodes = parser.findReachableNodes(node);
+                    if(reachableNodes.size()!=parser.totalNodes()) {
+                        allNodesReachable=false;
+                    }
+                }
+            if(allNodesReachable)
+            System.out.println("All nodes are reachable from any node: " + allNodesReachable);
+            else{
+                System.out.println("All nodes are not reachable from any node: " + allNodesReachable);
             }
             
         } catch (IOException e) {
