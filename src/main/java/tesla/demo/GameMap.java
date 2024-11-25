@@ -89,13 +89,10 @@ public class GameMap {
         return roadNetwork.get((x + 1) + "," + (y + 1));
     }
 
-    public Node getTrafficNode(int x, int y) {
-        Node node = roadNetwork.get((x + 1) + "," + (y + 1));
-        if (node instanceof TrafficNode) {
-            node.type="TrafficNode";
-            return (TrafficNode) node;
-        }
-        return node;
+    public TrafficNode getTrafficNode(int x, int y) {
+        String key = (x) + "," + (y);
+        Node node = roadNetwork.get(key);
+        return (node instanceof TrafficNode) ? (TrafficNode) node : null;
     }
     public List<Node> getValidMoves(int x, int y) {
         Node currentNode = getRoadNode(x, y);

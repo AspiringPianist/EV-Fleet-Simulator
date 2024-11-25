@@ -47,11 +47,14 @@ public class TrafficManager {
         //trafficLights = new ArrayList<TrafficNode>();
         // vehicleDeques = new HashMap<>();
         //this.evMap = evMap;
+        trafficNodeToCompletionNode = new HashMap<>();  // Or initialize in constructor
+
     }
 
     public static TrafficManager getInstance() {
         if (instance == null) {
             instance = new TrafficManager();
+            instance.startTrafficCycle(); // Start the traffic cycle immediately
         }
         return instance;
     }
@@ -61,76 +64,138 @@ public class TrafficManager {
         // vehicleDeques.put(node, new LinkedList<>());
         // node.addEv();
     }
+    public void updateSignals() {
+        trafficLights.forEach(TrafficNode::changeSignal);
+    }
 
-    public boolean canEVMove(EV ev) {
-        // System.out.println("I AM DYING");
-        //remove from deque if first EV reaches completion node
-        //--------------------------------Section for adding evs to queue-----------------------------------------------
-            Node currentNode = GameMap.getInstance().getTrafficNode(ev.getPath().get(ev.currentPathIndex).getX(),
-                    ev.getPath().get(ev.currentPathIndex).getY()); 
-            //this means we go to else case
-            System.out.println(currentNode.type);
-            if (currentNode.type.equals("TrafficNode") ) {
-                System.out.println("ENTERED WHAT IS THIS FUCK OFF");
-                TrafficNode trafficNode = (TrafficNode)currentNode;
-                if (!trafficNode.isGreen() || !trafficNode.getDeque().isEmpty()) {
-                    trafficNode.addToDeque(ev);
-                    return false;
-                }
+
+    // public boolean canMoveToPosition(EV ev, int targetX, int targetY) {
+    //     TrafficNode currentTrafficNode = GameMap.getInstance().getTrafficNode(targetX, targetY);
+
+    //     if (currentTrafficNode != null) {
+    //         if (!currentTrafficNode.isGreen() || !currentTrafficNode.getDeque().isEmpty()) {
+    //             currentTrafficNode.addToDeque(ev);
+    //             return false;
+    //         }
+
+    //         Node completionNode = GameMap.getInstance().getTrafficNode(
+    //             ev.getPath().get(ev.currentPathIndex + 3).getX(),
+    //             ev.getPath().get(ev.currentPathIndex + 3).getY()
+    //         );
+    //         trafficNodeToCompletionNode.put(currentTrafficNode, completionNode);
+    //         return true;
+    //     }
+
+    //     int currentPathIndex = ev.currentPathIndex;
+    //     for (int pathIndex = currentPathIndex; pathIndex < ev.getPath().size(); pathIndex++) {
+    //         PathNode position = ev.getPath().get(pathIndex);
+    //         TrafficNode trafficNode = GameMap.getInstance().getTrafficNode(position.getX(), position.getY());
+    //         if (trafficNode != null) {
+    //             currentTrafficNode = trafficNode;
+    //             break;
+    //         }
+    //     }
+
+    //     if (currentTrafficNode != null) {
+    //         Deque<EV> deque = currentTrafficNode.getDeque();
+    //         if (!deque.isEmpty()) {
+    //             EV firstEV = deque.pollFirst();
+    //             EV secondEV = deque.peekFirst();
+    //             deque.addFirst(firstEV);
+
+    //             if (ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),
+    //                     firstEV.getPath().get(firstEV.currentPathIndex).getY()) != trafficNodeToCompletionNode.get(currentTrafficNode)) {
+    //                 return false;
+    //             }
+
+    //             if (ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),
+    //                     firstEV.getPath().get(firstEV.currentPathIndex).getY()) == trafficNodeToCompletionNode.get(currentTrafficNode)) {
+    //                 deque.removeFirst();
+    //                 trafficNodeToCompletionNode.put(currentTrafficNode, null);
+    //                 return true;
+    //             }
+    //         }
+
+    //         if (!deque.isEmpty()) {
+    //             EV lastEV = deque.peekLast();
+    //             PathNode lastEVInDequePosition = lastEV.getPath().get(lastEV.currentPathIndex);
+    //             PathNode nextEVPosition = ev.getPath().get(ev.currentPathIndex + 1);
+    //             if (lastEVInDequePosition.equals(nextEVPosition)) {
+    //                 currentTrafficNode.addToDeque(ev);
+    //                 return false;
+    //             }
+    //         }
+    //     }
+    //     return true;
+    // }
+
+    public boolean canMoveToPosition(EV ev, int targetX, int targetY) {
+        // Get current position
+        PathNode currentPos = ev.getPath().get(ev.currentPathIndex);
         
-                if(trafficNode.isGreen()) {
-                    Node completionNode = GameMap.getInstance().getTrafficNode(ev.getPath().get(ev.currentPathIndex + 3).getX(),
-                            ev.getPath().get(ev.currentPathIndex + 3).getY());
-                    trafficNodeToCompletionNode.put(trafficNode, completionNode);
-                    return false;
+        // Check if current position is at a traffic node
+        TrafficNode currentTrafficNode = GameMap.getInstance().getTrafficNode(
+            currentPos.getX(), 
+            currentPos.getY()
+        );
+        if(currentTrafficNode == null) {
+            return true;
+        }
+        // Check if target position is at a traffic node
+        TrafficNode targetTrafficNode = GameMap.getInstance().getTrafficNode(targetX, targetY);
+        // Case 1: Moving to a traffic node
+        if (targetTrafficNode != null) {
+            if (!targetTrafficNode.isGreen()) {
+                targetTrafficNode.addToDeque(ev);
+                return false;
+            }
+        }
+        
+        // Case 2: Currently at a traffic node
+        if (currentTrafficNode != null) {
+            if(!currentTrafficNode.isGreen()) {
+                return false;
+            }
+            if (!currentTrafficNode.isGreen() || !currentTrafficNode.getDeque().isEmpty()) {
+                return false;
+            }
+        }
+        
+        // Case 3: Check if path between current and target crosses any red lights
+        int pathDistance = Math.abs(targetX - currentPos.getX()) + Math.abs(targetY - currentPos.getY());
+        if (pathDistance > 1) {
+            for (int i = ev.currentPathIndex; i < ev.getPath().size(); i++) {
+                PathNode checkPos = ev.getPath().get(i);
+                TrafficNode checkNode = GameMap.getInstance().getTrafficNode(
+                    checkPos.getX(), 
+                    checkPos.getY()
+                );
+                if (checkNode != null && !checkNode.isGreen()) {
+                    return handleUpcomingTrafficNode(targetTrafficNode, ev);
                 }
-            }else {
-                int currentPathIndex = ev.currentPathIndex;
-                for (int pathIndex = currentPathIndex; pathIndex < ev.getPath().size(); pathIndex++) {
-                    PathNode position = ev.getPath().get(pathIndex);
-                    Node trafficNode = GameMap.getInstance().getTrafficNode(position.getX(), position.getY());
-                    if (trafficNode instanceof TrafficNode) {
-                        currentNode = trafficNode;
-                        break;
+            }
+        }
+        
+        return true;
+    }
+    
+    
+    
+        private boolean handleUpcomingTrafficNode(TrafficNode trafficNode, EV ev) {
+            Deque<EV> deque = trafficNode.getDeque();
+            if(!deque.isEmpty()) {
+                EV firstEV = deque.peekFirst();
+                if(firstEV != null && trafficNodeToCompletionNode.get(trafficNode) != null) {
+                    Node currentFirstEVNode = GameMap.getInstance().getRoadNode(
+                        firstEV.getPath().get(firstEV.currentPathIndex).getX(),
+                        firstEV.getPath().get(firstEV.currentPathIndex).getY()
+                    );
+                    if(currentFirstEVNode == trafficNodeToCompletionNode.get(trafficNode)) {
+                        deque.removeFirst();
+                        trafficNodeToCompletionNode.remove(trafficNode);
                     }
                 }
-                
-                if (currentNode instanceof TrafficNode) {
-                    TrafficNode trafficNode = (TrafficNode)currentNode;
-                    // Deque<EV> Deque = vehicleDeques.get(trafficNode);
-                    Deque<EV> Deque=trafficNode.getDeque();
-                    // if(Deque!=null && !Deque.isEmpty()) {
-                    if(!Deque.isEmpty()) {
-                        EV firstEV = Deque.pollFirst();
-                        EV secondEV = Deque.peekFirst();
-                        Deque.addFirst(firstEV);
-                        
-                        if(ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),
-                                firstEV.getPath().get(firstEV.currentPathIndex).getY()) != trafficNodeToCompletionNode.get(trafficNode)) {
-                            return false;
-                        }
-                        
-                        if(ev == secondEV && GameMap.getInstance().getRoadNode(firstEV.getPath().get(firstEV.currentPathIndex).getX(),
-                                firstEV.getPath().get(firstEV.currentPathIndex).getY()) == trafficNodeToCompletionNode.get(trafficNode)) {
-                            Deque.removeFirst();
-                            trafficNodeToCompletionNode.put(trafficNode, null);
-                            return false;
-                        }
-                    }
-                    
-                    // if (Deque!=null && !Deque.isEmpty()) {
-                    if (!Deque.isEmpty()) {
-                        EV lastEV = Deque.peekLast();
-                        PathNode lastEVInDequePosition = lastEV.getPath().get(lastEV.currentPathIndex);
-                        PathNode nextEVPosition = ev.getPath().get(ev.currentPathIndex + 1);
-                        if (lastEVInDequePosition == nextEVPosition) {
-                            // addToDeque(trafficNode, ev);
-                            trafficNode.addToDeque(ev);
-                            return false;
-                        }
-                    }
-                }
-                return true;
+                return false;
             }
             return true;
         }
@@ -167,12 +232,27 @@ public class TrafficManager {
     public void startTrafficCycle() {
         scheduler.scheduleAtFixedRate(() -> {
             changeSignals();
-        }, 0, 10, TimeUnit.SECONDS);
+        }, 0, 3, TimeUnit.SECONDS);  // Changed to 3 seconds
     }
     
-    public void changeSignals() {
+    public static void changeSignals() {
+        long currentTime = System.currentTimeMillis();
         for (TrafficNode node : trafficLights) {
             node.changeSignal();
+            //System.out.println("Signal change at " + currentTime + ": (" + node.x + "," + node.y + 
+                          //    "): " + (node.isGreen() ? "GREEN" : "RED"));
+        }
+    }
+    private void processQueuedEVs(TrafficNode node) {
+        Deque<EV> queue = node.getDeque();
+        while (!queue.isEmpty()) {
+            EV ev = queue.peek();
+            PathNode nextPos = ev.getPath().get(ev.currentPathIndex + 1);
+            if (canMoveToPosition(ev, nextPos.getX(), nextPos.getY())) {
+                queue.poll(); // Remove EV from queue if it can move
+            } else {
+                break; // Stop processing if an EV can't move
+            }
         }
     }
     
@@ -195,6 +275,7 @@ public class TrafficManager {
     //         Deque.offer(ev);
     //     }
     // }
+    
 
     public void shutdown() {
         scheduler.shutdown();

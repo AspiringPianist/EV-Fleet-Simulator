@@ -15,6 +15,16 @@ class Node {
         this.y = y;
         this.type=type;
         this.neighbors = new ArrayList<>();
+        this.stalled = false;
+    }
+    private boolean stalled;
+
+    public boolean isStalled() {
+        return stalled;
+    }
+
+    public void setStalled(boolean stalled) {
+        this.stalled = stalled;
     }
 
     @Override
@@ -56,66 +66,75 @@ public class RoadMapParser {
     public void parseCSV(String filePath, String signalMapPath) throws IOException {
         List<String[]> grid = new ArrayList<>();
         List<String[]> signalGrid = new ArrayList<>();
+        
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
             while ((line = br.readLine()) != null) {
-                // Split the line by comma, but not commas within quotes
                 String[] row = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
-                
-                // Remove quotes and clean the data
                 for (int i = 0; i < row.length; i++) {
                     row[i] = row[i].replace("\"", "").trim();
                 }
-                
                 grid.add(row);
             }
         }
+        
         try (BufferedReader br = new BufferedReader(new FileReader(signalMapPath))) {
             String line;
             while ((line = br.readLine()) != null) {
-                // Split the line by comma, but not commas within quotes
                 String[] row = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", -1);
-                
-                // Remove quotes and clean the data
                 for (int i = 0; i < row.length; i++) {
                     row[i] = row[i].replace("\"", "").trim();
                 }
-                
                 signalGrid.add(row);
             }
         }
         
         this.rows = grid.size();
         this.cols = grid.get(0).length;
-
-        // Process each cell in the grid
+    
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 String cellValue = grid.get(i)[j];
                 String signalCellValue = signalGrid.get(i)[j];
-                if (!cellValue.equals("0") && !cellValue.equals("497")) {
-                    // Create node for current position (i+1, j+1 for 1-based indexing)
-                    Node currentNode = null;
-                    if(signalCellValue.equals("1") || signalCellValue.equals("2")) {
+                if (!cellValue.equals("0")) {
+                    Node currentNode;
+                    if(!signalCellValue.equals("0") && (signalCellValue.equals("1") || signalCellValue.equals("2"))) {
                         currentNode = getOrCreateNode(i + 1, j + 1, "TrafficNode", Integer.parseInt(signalCellValue)-1);
+                        System.out.println("Traffic Node is " +  currentNode.type);
+                        // if(!currentNode.type.equals("Node")) {
+                        //     System.out.println("AHHAHAHAHHAHHAAH");
+                        // }
+                        // else {
+                        //     currentNode.type = "Node";
+                        // }
+                    } else {
+                        currentNode = getOrCreateNode(i + 1, j + 1, "Node", -1);
+                        // System.out.println("Current Node is " +  currentNode.type);
+                        // if(!currentNode.type.equals("TrafficNode")) {
+                        //     System.out.println("AHHAHAHAHHAHHAAH");
+                        // }
+
                     }
-                    else {
-                        currentNode = getOrCreateNode(i + 1, j + 1, "Node", Integer.parseInt(signalCellValue)-1);
-                    }
-                    // Parse destinations
-                    List<int[]> coordinates = parseCoordinates(cellValue);
                     
-                    // Create edges for each destination
+                    List<int[]> coordinates = parseCoordinates(cellValue);
                     for (int[] coord : coordinates) {
-                        Node destNode = getOrCreateNode(coord[0], coord[1], "Node", Integer.parseInt(signalCellValue)-1);
-                        if (!currentNode.neighbors.contains(destNode)) {
-                            currentNode.neighbors.add(destNode);
+                        String destSignalValue = signalGrid.get(coord[0]-1)[coord[1]-1];
+                        Node destNode;
+                        if(!destSignalValue.equals("0") && (destSignalValue.equals("1") || destSignalValue.equals("2"))) {
+                            destNode = getOrCreateNode(coord[0], coord[1], "TrafficNode", Integer.parseInt(destSignalValue)-1);
+                            //System.out.println("Traffic Node neighbor is " +  destNode.type);
+                        } else {
+                            destNode = getOrCreateNode(coord[0], coord[1], "Node", -1);
+                            //System.out.println(" Node neighbor is " +  destNode.type);
+
                         }
+                        currentNode.neighbors.add(destNode);
                     }
                 }
             }
         }
-    }
+        }
+    
 
     private List<int[]> parseCoordinates(String cellValue) {
         List<int[]> coordinates = new ArrayList<>();
@@ -144,14 +163,16 @@ public class RoadMapParser {
     }
     
 
-    private Node getOrCreateNode(int x, int y,String type, int trafficType) {
+    private Node getOrCreateNode(int x, int y, String type, int trafficType) {
         String key = x + "," + y;
-        if(type.equals("TrafficNode")){
-            TrafficNode newNode = new TrafficNode(x, y,"TrafficNode", trafficType);
-            TrafficManager.getInstance().addTrafficNode(newNode);
-            return nodes.computeIfAbsent(key, k -> newNode);
+        if (type.equals("TrafficNode")) {
+            return nodes.computeIfAbsent(key, k -> {
+                TrafficNode newNode = new TrafficNode(x, y, "TrafficNode", trafficType);
+                TrafficManager.getInstance().addTrafficNode(newNode);
+                return newNode;
+            });
         }
-        return nodes.computeIfAbsent(key, k -> new Node(x, y,type));
+        return nodes.computeIfAbsent(key, k -> new Node(x, y, type));
     }
     public void printGraph() {
         System.out.println("Road Network Graph:");
@@ -169,7 +190,12 @@ public class RoadMapParser {
 
     // Method to get a specific node
     public Node getNode(int x, int y) {
-        return nodes.get(x + "," + y);
+        String key = x + "," + y;
+        return nodes.get(key);
+    }
+    public TrafficNode getTrafficNode(int x, int y) {
+        Node node = getNode(x, y);
+        return (node instanceof TrafficNode) ? (TrafficNode) node : null;
     }
 
     // Method to get all nodes

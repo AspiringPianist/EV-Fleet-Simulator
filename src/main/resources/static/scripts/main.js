@@ -3,6 +3,7 @@ const config = {
     width: 1200,
     height: 800,
     parent: 'game-container',
+    fps: 30,
     scene: {
         create: create,
         update: update
@@ -13,6 +14,28 @@ const game = new Phaser.Game(config);
 let evSprites = new Map();
 let trafficLightSprites = new Map();
 let scene;
+let lastUpdateTime = 0;
+const SIGNAL_CHANGE_INTERVAL = 1499; // Matches backend interval
+let lastSignalUpdate = 0;
+const EV_UPDATE_INTERVAL = 300; // More frequent EV position updates
+const TWEEN_DURATION = 200; // Longer duration for visible movement
+
+function updateTrafficSignals() {
+    fetch('/api/ev/traffic/signals')
+        .then(response => response.json())
+        .then(signals => {
+            signals.forEach(signal => {
+                let sprite = trafficLightSprites.get(`${signal.x},${signal.y}`);
+                if (!sprite) {
+                    sprite = createTrafficLight(signal);
+                }
+                const color = signal.isGreen ? 0x00ff00 : 0xff0000;
+                sprite.light.setFillStyle(color);
+                sprite.glow.setFillStyle(color);
+                console.log(`Traffic Node (${signal.x},${signal.y}): ${signal.isGreen ? 'GREEN' : 'RED'} - Queue: ${signal.queueSize}`);
+            });
+        });
+}
 
 function create() {
     scene = this;
@@ -22,9 +45,120 @@ function create() {
     loadMap();
     setupEventListeners();
     loadExistingEVs();
-    startTrafficSignalUpdates();
+    updateTrafficSignals();
+}
+function update(time) {
+    // Update EV positions
+    if (time - lastUpdateTime >= EV_UPDATE_INTERVAL) {
+        updateEVPositions();
+        lastUpdateTime = time;
+    }
+
+    // Update traffic signals based on backend state
+    if (time - lastSignalUpdate >= SIGNAL_CHANGE_INTERVAL) {
+        fetch('/api/ev/traffic/signals')
+            .then(response => response.json())
+            .then(signals => {
+                updateTrafficLights(signals);
+                lastSignalUpdate = time;
+            });
+    }
 }
 
+
+function updateTrafficLights(signals) {
+    signals.forEach(signal => {
+        let sprite = trafficLightSprites.get(`${signal.x},${signal.y}`);
+        if (!sprite) {
+            sprite = createTrafficLight(signal);
+        }
+        const color = signal.isGreen ? 0x00ff00 : 0xff0000;
+        sprite.light.setFillStyle(color, 1);  // Added alpha value
+        sprite.glow.setFillStyle(color, 0.3);
+        scene.signalLayer.clear();  // Clear previous renders
+    });
+}
+
+
+function createTrafficLight(signal) {
+    const light = scene.add.circle(
+        signal.y * 20 + 10,
+        signal.x * 20 + 10,
+        5,
+        signal.isGreen ? 0x00ff00 : 0xff0000
+    ).setDepth(1);
+    
+    const glow = scene.add.circle(
+        signal.y * 20 + 10,
+        signal.x * 20 + 10,
+        8,
+        signal.isGreen ? 0x00ff00 : 0xff0000,
+        0.3
+    ).setDepth(0);
+    
+    const sprite = { light, glow };
+    trafficLightSprites.set(`${signal.x},${signal.y}`, sprite);
+    return sprite;
+}
+
+function updateEVPositions() {
+    evSprites.forEach((sprite, evName) => {
+        if (sprite.isMoving && sprite.pathData) {
+            checkAndMoveEV(evName, sprite);
+        }
+    });
+}
+
+function checkAndMoveEV(evName, sprite) {
+    if (sprite.currentPathIndex >= sprite.pathData.length - 1) {
+        sprite.isMoving = false;
+        return;
+    }
+
+    const nextPos = sprite.pathData[sprite.currentPathIndex + 1];
+    fetch(`/api/ev/${evName}/canMoveToPosition/${nextPos.x}/${nextPos.y}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(canMove => {
+        if (canMove) {
+            moveEV(sprite, nextPos, evName);
+        }
+    });
+}
+
+function moveEV(sprite, nextPos, evName) {
+    scene.tweens.add({
+        targets: sprite,
+        x: nextPos.y * 20 + 10,
+        y: nextPos.x * 20 + 10,
+        duration: TWEEN_DURATION,
+        ease: 'Linear',
+        onComplete: () => {
+            sprite.currentPathIndex++;
+            fetch(`/api/ev/${evName}/updatePosition`, { method: 'POST' });
+            // Immediately check for next movement
+            checkAndMoveEV(evName, sprite);
+        }
+    });
+}
+function checkAndMoveEV(evName, sprite) {
+    if (sprite.currentPathIndex >= sprite.pathData.length - 1) {
+        sprite.isMoving = false;
+        return;
+    }
+
+    const nextPos = sprite.pathData[sprite.currentPathIndex + 1];
+    fetch(`/api/ev/${evName}/canMoveToPosition/${nextPos.x}/${nextPos.y}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(canMove => {
+        if (canMove) {
+            moveEV(sprite, nextPos, evName);
+        }
+    });
+}
 function loadMap() {
     fetch('/api/map')
         .then(response => response.json())
@@ -72,16 +206,19 @@ function setupEventListeners() {
     });
 }
 
+
 function createEVSprite(ev) {
     const sprite = scene.add.circle(
         (ev.startY * 20) + 10,
         (ev.startX * 20) + 10,
         5,
         getEVTypeColor(ev.type)
-    ).setDepth(2);
+    ).setDepth(3);
+    sprite.isMoving = false;
+    sprite.currentPathIndex = 0;
     evSprites.set(ev.name, sprite);
+    scene.add.existing(sprite);  // Ensure sprite is added to scene
 }
-
 function getEVTypeColor(type) {
     const colors = {
         1: 0xff0000,
@@ -113,54 +250,25 @@ function startEVSimulation(evName) {
     })
     .then(response => response.json())
     .then(path => {
-        simulateEVMovement(evName, path);
+        const sprite = evSprites.get(evName);
+        sprite.pathData = path;
+        sprite.currentPathIndex = 0;
+        sprite.isMoving = true;
+        // Ensure sprite is visible and at correct depth
+        sprite.setVisible(true);
+        sprite.setDepth(3);
+        console.log(`EV ${evName} started simulation with path:`, path);
+        // Start movement immediately
+        checkAndMoveEV(evName, sprite);
     });
 }
 
-function simulateEVMovement(evName, path) {
+function stopEVSimulation(evName) {
     const sprite = evSprites.get(evName);
-    let pathIndex = 0;
-
-    function moveStep() {
-        if (pathIndex >= path.length - 1) return;
-        
-        fetch(`/api/ev/${evName}/canMove`, {
-            method: 'POST'
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    console.error('Error response:', text);
-                    throw new Error(text);
-                });
-            }
-            return response.json();
-        })
-        .then(canMove => {
-            console.log(`Movement check for ${evName}: ${canMove}`);
-            if (canMove) {
-                const nextPos = path[pathIndex + 1];
-                scene.tweens.add({
-                    targets: sprite,
-                    x: nextPos.y * 20 + 10,
-                    y: nextPos.x * 20 + 10,
-                    duration: 10,
-                    ease: 'Linear',
-                    onComplete: () => {
-                        pathIndex++;
-                        moveStep();
-                    }
-                });
-            } else {
-                setTimeout(moveStep, 100);
-            }
-        })
-        .catch(error => console.error('Movement error:', error));
+    if (sprite) {
+        sprite.isMoving = false;
     }
-    
-    moveStep();
 }
-
 
 function drawMap(scene, mapData) {
     scene.mapLayer.clear();
@@ -176,61 +284,4 @@ function drawMap(scene, mapData) {
             tileSize
         );
     });
-}
-
-function startTrafficSignalUpdates() {
-    console.log('Starting traffic signal updates');
-    updateTrafficSignals();
-    // Update more frequently for smoother transitions
-    setInterval(updateTrafficSignals, 1000); // Check every second
-}
-
-function updateTrafficSignals() {
-    fetch('/api/ev/traffic/signals')
-        .then(response => response.json())
-        .then(signals => {
-            signals.forEach(signal => {
-                let sprite = trafficLightSprites.get(`${signal.x},${signal.y}`);
-                if (!sprite) {
-                    // Create traffic light with enhanced visibility
-                    sprite = scene.add.circle(
-                        signal.y * 20 + 10,
-                        signal.x * 20 + 10,
-                        5,
-                        signal.isGreen ? 0x00ff00 : 0xff0000
-                    ).setDepth(2);
-                    
-                    // Add outer ring for glow effect
-                    const glowRing = scene.add.circle(
-                        signal.y * 20 + 10,
-                        signal.x * 20 + 10,
-                        8,
-                        signal.isGreen ? 0x00ff00 : 0xff0000,
-                        0.3
-                    ).setDepth(1);
-                    
-                    trafficLightSprites.set(`${signal.x},${signal.y}`, {
-                        light: sprite,
-                        glow: glowRing
-                    });
-                } else {
-                    const color = signal.isGreen ? 0x00ff00 : 0xff0000;
-                    sprite.light.setFillStyle(color);
-                    sprite.glow.setFillStyle(color);
-                }
-            });
-        });
-}
-function startTrafficSignalUpdates() {
-    updateTrafficSignals();
-    setInterval(() => {
-        fetch('/api/ev/traffic/change', { method: 'POST' })
-            .then(() => updateTrafficSignals());
-    }, 10000);
-}
-
-
-
-function update() {
-    // Real-time updates if needed
 }

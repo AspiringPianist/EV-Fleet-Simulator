@@ -23,11 +23,12 @@ public class EVController {
     private Map<String, EV> evMap;
     private PathfindingVisualizer pathfinder;
     private TrafficManager trafficManager;
+    private ScheduledExecutorService scheduler;
+
     public EVController() {
         evMap = new HashMap<>();
         pathfinder = new PathfindingVisualizer(GameMap.getInstance());
         trafficManager = new TrafficManager();
-
     }
     @PostMapping("/new")
     public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
@@ -54,36 +55,46 @@ public class EVController {
         evMap.put(ev.getName(), ev);
         return ResponseEntity.ok(ev);
     }
-    @PostMapping("/{evName}/canMove")
-    public ResponseEntity<?> canEVMove(@PathVariable String evName) {
-        try {
-            EV ev = evMap.get(evName);
-            if (ev == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("EV not found: " + evName);
-            }
-    
-            if (ev.currentPathIndex >= ev.getPath().size()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Invalid path index for EV: " + evName);
-            }
-    
-            boolean canMove = trafficManager.canEVMove(ev);
-            return ResponseEntity.ok(canMove);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error processing movement: " + e.getMessage());
-        }
+    public Map<String, EV> getEvMap() {
+        return this.evMap;
     }
+    @PostMapping("/{evName}/updatePosition")
+public ResponseEntity<?> updateEVPosition(@PathVariable String evName) {
+    EV ev = evMap.get(evName);
+    if (ev != null) {
+        ev.currentPathIndex++;
+        System.out.println("Updated " + evName + " position to index: " + ev.currentPathIndex);
+        return ResponseEntity.ok().build();
+    }
+    return ResponseEntity.notFound().build();
+}
+//     @PostMapping("/{evName}/canMove")
+// public ResponseEntity<?> canEVMove(@PathVariable String evName) {
+//     try {
+//         EV ev = evMap.get(evName);
+//         System.out.println("Checking movement for EV: " + evName);
+//         System.out.println("Current position: (" + ev.getPath().get(ev.currentPathIndex).getX() + 
+//                           "," + ev.getPath().get(ev.currentPathIndex).getY() + ")");
+//         System.out.println("Current path index: " + ev.currentPathIndex);
 
-    @GetMapping("/traffic/signals")
-    public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
-        List<TrafficSignalState> states = TrafficManager.trafficLights.stream()
-            .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen()))
-            .collect(Collectors.toList());
-        return ResponseEntity.ok(states);
-    }
+//         boolean canMove = trafficManager.canEVMove(ev);
+//         System.out.println("Movement decision for " + evName + ": " + canMove);
+//         return ResponseEntity.ok(canMove);
+//     } catch (Exception e) {
+//         System.err.println("Error in canMove endpoint: " + e.getMessage());
+//         e.printStackTrace();
+//         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+//     }
+// }
+
+@GetMapping("/traffic/signals")
+public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
+    List<TrafficSignalState> states = TrafficManager.trafficLights.stream()
+        .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen(), node.getDeque().size()))
+        .collect(Collectors.toList());
+    return ResponseEntity.ok(states);
+}
+
 
     @PostMapping("/{evName}/start")
     public List<PathNode> startEV(@PathVariable String evName) {
@@ -103,6 +114,29 @@ public class EVController {
         trafficManager.changeSignals();
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{evName}/canMoveToPosition/{targetX}/{targetY}")
+public ResponseEntity<Boolean> canMoveToPosition(
+    @PathVariable String evName,
+    @PathVariable int targetX, 
+    @PathVariable int targetY
+) {
+    try {
+        EV ev = evMap.get(evName);
+        if (ev == null) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        System.out.println("Checking movement for EV: " + evName + " to position: (" + targetX + "," + targetY + ")");
+        boolean canMove = trafficManager.canMoveToPosition(ev, targetX, targetY);
+        System.out.println("Movement decision: " + canMove);
+        
+        return ResponseEntity.ok(canMove);
+    } catch (Exception e) {
+        System.err.println("Error checking movement: " + e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+}
 
 
 
@@ -136,15 +170,18 @@ class EVCreateRequest {
     public int getChargingRate() { return chargingRate; }
 }
 
+
 class TrafficSignalState {
     public int x;
     public int y;
     public boolean isGreen;
+    public int queueSize;
     
-    public TrafficSignalState(int x, int y, boolean isGreen) {
+    public TrafficSignalState(int x, int y, boolean isGreen, int queueSize) {
         this.x = x;
         this.y = y;
         this.isGreen = isGreen;
+        this.queueSize = queueSize;
     }
 }
 

@@ -1,6 +1,5 @@
 package tesla.demo;
 import java.util.*;
-
 public class EV {
     private String name;
     private int startX;
@@ -12,6 +11,7 @@ public class EV {
     private int chargingRate;
     private List<PathNode> path;
     public int currentPathIndex;
+    private boolean moving = false;
 
     Queue<Task> taskQueue = new LinkedList<Task>(); 
     
@@ -21,6 +21,7 @@ public class EV {
         this.type = type;
         this.charge = charge;
         this.chargingRate = chargingRate;
+        this.currentPathIndex = 0;
     }
 
     // Getters
@@ -37,19 +38,26 @@ public class EV {
     public void setName(String name) {
         this.name = name;
     }
+    public int getCurrentPathIndex() {
+        return currentPathIndex;
+    }
+
+    public void moveToNextPosition() {
+        if (currentPathIndex < path.size() - 1) {
+            currentPathIndex++;
+            PathNode nextPosition = path.get(currentPathIndex);
+            // Update the EV's position in the game map or any other necessary state
+            System.out.println("EV moved to position: (" + nextPosition.getX() + ", " + nextPosition.getY() + ")");
+        } else {
+            System.out.println("EV has reached the end of its path.");
+        }
+    }
+
 
     public void setEndLocation(int endX, int endY) {
         this.endX = endX;
         this.endY = endY;
     }
-
-    // public void addToPath(int x, int y) {
-    //     path.add(new int[]{x, y});
-    // }
-
-    // public void clearPath() {
-    //     path.clear();
-    // }
 
     public boolean fullCharge() {
         if (this.charge >= 100) {
@@ -59,6 +67,21 @@ public class EV {
         return false;
     }
 
+    public int getCurrentX() {
+        return getPath().get(currentPathIndex).getX();
+    }
+
+    public int getCurrentY() {
+        return getPath().get(currentPathIndex).getY();
+    }
+
+    public boolean isMoving() {
+        return moving;
+    }
+
+    public void setMoving(boolean moving) {
+        this.moving = moving;
+    }
     public void charge() {
         this.charge += this.chargingRate;
         try {
