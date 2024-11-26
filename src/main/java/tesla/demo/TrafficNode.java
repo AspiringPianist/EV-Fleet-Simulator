@@ -15,12 +15,7 @@ public class TrafficNode extends Node{
     //red --0
     public void changeSignal(){
         // signal=!signal;
-       if(signal==0){
-            signal=1;
-        }
-        else{
-            signal=0;
-        }
+       signal= (signal+1)%4;
     }
     // public void addToDeque(EV ev){
     //     trafficNodeDeque.add(ev);
@@ -30,7 +25,7 @@ public class TrafficNode extends Node{
     // }
     public boolean isGreen() {
         // return this.signal ==1;
-        if(this.signal==1){
+        if(this.signal==0){
             return true;
         }
         else{
