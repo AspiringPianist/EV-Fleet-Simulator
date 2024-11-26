@@ -44,13 +44,13 @@ public class GameMap {
         return instance;
     }
 
-    public GameObject getObject(int x, int y) {
-        String key = (x + 1) + "," + (y + 1);
-        if (roadNetwork.containsKey(key)) {
-            return new GameObject(x, y);
-        }
-        return new Obstacle(x, y);
-    }
+    // public GameObject getObject(int x, int y) {
+    //     String key = (x + 1) + "," + (y + 1);
+    //     if (roadNetwork.containsKey(key)) {
+    //         return new GameObject(x, y);
+    //     }
+    //     return new Obstacle(x, y);
+    // }
 
     public boolean isWalkable(int x, int y) {
         String key = x + "," + y;  // Already 1-based

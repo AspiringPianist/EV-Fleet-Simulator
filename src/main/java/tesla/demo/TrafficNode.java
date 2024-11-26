@@ -25,15 +25,10 @@ public class TrafficNode extends Node{
     // }
     public boolean isGreen() {
         // return this.signal ==1;
-        if(this.signal==0){
-            return true;
-        }
-        else{
-            return false;
-        }
+        return this.signal==0;
     }
     public boolean isRed() {
-        return !isGreen();
+        return this.signal!=0;
     }
     
     public TrafficNode get_pair(TrafficNode currentNode) {

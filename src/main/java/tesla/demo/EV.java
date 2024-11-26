@@ -12,6 +12,8 @@ public class EV {
     private List<PathNode> path;
     public int currentPathIndex;
     private boolean moving = false;
+    public Task task;
+    private static final long MOVE_INTERVAL = 500; // 500 milliseconds
 
     Queue<Task> taskQueue = new LinkedList<Task>(); 
     
@@ -22,6 +24,7 @@ public class EV {
         this.charge = charge;
         this.chargingRate = chargingRate;
         this.currentPathIndex = 0;
+        this.task=null;
     }
 
     // Getters
@@ -40,6 +43,9 @@ public class EV {
     }
     public int getCurrentPathIndex() {
         return currentPathIndex;
+    }
+    public long getMoveInterval() {
+        return MOVE_INTERVAL;
     }
 
     public void moveToNextPosition() {
@@ -89,6 +95,11 @@ public class EV {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public void getTask(){
+        task=TaskAssigner.assignTask();
+        setMoving(true);
     }
     // public boolean canMove() {
     //     if (path == null || path.isEmpty()) {

@@ -150,24 +150,38 @@ public class TrafficManager {
         // if (ev.currentPathIndex == ev.getPath().size() - 1) {
         //     return true;
         // }
+
+        
         // Check if current position is at a traffic node
         TrafficNode currentTrafficNode = GameMap.getInstance().getTrafficNode(
                 currentPos.getX(),
                 currentPos.getY());
+
+         // If we're at or approaching a traffic node, check timing
+        if (currentTrafficNode != null || GameMap.getInstance().getTrafficNode(targetX, targetY) != null) {
+            long currentTime = System.currentTimeMillis();
+            long timeUntilChange = nextSignalChangeTime - currentTime;
+            
+            // Calculate time needed to cross intersection (assuming 3 cells to cross completely)
+            long timeNeededToCross = 2 * ev.getMoveInterval(); // Time for 3 moves
+            
+            // If there isn't enough time to cross safely, don't start crossing
+            if (timeUntilChange < timeNeededToCross) {
+                return false;
+            }
+        }
         if (currentTrafficNode == null) {
             //System.out.println("sdkgbwrjbfwijcb");
             // not at traffic node, atleast check if ev is there ahead
             //System.out.println(GameMap.getInstance().getRoadNode(ev.getPath().get(ev.currentPathIndex).getX(),
             //ev.getPath().get(ev.currentPathIndex).getY()));
-            if (GameMap.getInstance().getRoadNode(ev.getPath().get(ev.currentPathIndex + 1).getX(),
-                    ev.getPath().get(ev.currentPathIndex + 1).getY()).isStalled()) {
+            if (GameMap.getInstance().getRoadNode(targetX, targetY).isStalled()) {
                 //System.out.println("Stalled");
                 return false;
             } else {
                 //System.out.println("Not stalled");
                 GameMap.getInstance().getRoadNode(ev.getCurrentX(), ev.getCurrentY()).setStalled(false);//mark current position as unstalled
-                GameMap.getInstance().getRoadNode(ev.getPath().get(ev.currentPathIndex + 1).getX(),
-                    ev.getPath().get(ev.currentPathIndex + 1).getY()).setStalled(true); //mark next position ev is moving to as stalled
+                GameMap.getInstance().getRoadNode(targetX, targetY).setStalled(true); //mark next position ev is moving to as stalled
                 return true;
             }
         }
@@ -207,8 +221,7 @@ public class TrafficManager {
         //     }
         // }
         GameMap.getInstance().getRoadNode(ev.getCurrentX(), ev.getCurrentY()).setStalled(false);//mark current position as unstalled
-        GameMap.getInstance().getRoadNode(ev.getPath().get(ev.currentPathIndex + 1).getX(),
-            ev.getPath().get(ev.currentPathIndex + 1).getY()).setStalled(true); //mark next position ev is moving to as stalled
+        GameMap.getInstance().getRoadNode(targetX, targetY).setStalled(true); //mark next position ev is moving to as stalled
         return true;
     }
 

@@ -50,6 +50,8 @@ class RoadMapEditor:
         
         # File operations        
         ttk.Button(self.toolbar, text="Load CSV", command=self.load_map).pack(side='right', padx=5)
+        ttk.Button(self.toolbar, text="Load Signals", command=self.load_signals).pack(side='right', padx=5)
+
         ttk.Button(self.toolbar, text="Save", command=self.save_map).pack(side='right', padx=5)
         ttk.Button(self.toolbar, text="Clear All", command=self.clear_map).pack(side='right', padx=5)
         ttk.Button(self.toolbar, text="Auto Place Signals", command=self.auto_place_signals).pack(side='left', padx=5)
@@ -98,7 +100,22 @@ class RoadMapEditor:
                     pos = (i+1, j+1)
                     row.append(self.signals.get(pos, '0'))
                 writer.writerow(row)
-
+    def load_signals(self):
+        filepath = filedialog.askopenfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            initialdir="src/main/resources/static/"
+        )
+        if filepath:
+            self.signals.clear()
+            with open(filepath, 'r') as file:
+                reader = csv.reader(file)
+                for i, row in enumerate(reader):
+                    for j, cell in enumerate(row):
+                        if cell != '0':
+                            self.signals[(i+1, j+1)] = cell
+            self.redraw_roads()
+            messagebox.showinfo("Success", "Signals loaded successfully!")
 
     def save_map(self):
         with open('map.csv', 'w', newline='') as file:
@@ -138,15 +155,6 @@ class RoadMapEditor:
                             if coords:
                                 key = f"{i+1},{j+1}"
                                 self.connections[key] = coords
-            try:
-                with open('signals.csv', 'r') as file:
-                    reader = csv.reader(file)
-                    for i, row in enumerate(reader):
-                        for j, cell in enumerate(row):
-                            if cell == '1':
-                                self.signals.add((i+1, j+1))
-            except FileNotFoundError:
-                pass
             self.redraw_roads()
             messagebox.showinfo("Success", "Map loaded successfully!")
 

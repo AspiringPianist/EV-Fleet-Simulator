@@ -2,7 +2,44 @@ package tesla.demo;
 
 import java.util.*;
 public class TaskAssigner{
-    
+    private static TaskAssigner instance;
+    public static Queue<Task> buffer;
+    TaskAssigner(){
+        buffer=new LinkedList<>();
+
+    }
+
+    public static TaskAssigner getInstance(){
+        if(instance==null){
+            return new TaskAssigner();
+        }
+        return instance;
+    }
+
+    public void addTask(String string_task, int start_x,int end_x,int start_y,int end_y,Map<String, EV> evMap){
+        Task task=new Task(string_task,start_x,start_y,end_x,end_y);
+        buffer.add(task);
+        giveTask(evMap);
+    }  
+
+
+    public static Task assignTask(){
+        Task task= buffer.poll();
+        // buffer.poll();
+        return task;
+    }
+
+    public static void giveTask(Map<String, EV> evMap){
+        for(Map.Entry<String,EV> entry : evMap.entrySet()){
+            EV ev=entry.getValue();
+            if(!ev.isMoving()){
+                Task task= buffer.poll();
+                ev.task=task;
+                ev.setMoving(true);
+                break;
+            }
+        }
+    }
 }
 // public class TaskAssigner {
 //     public List<EV> evFleet;

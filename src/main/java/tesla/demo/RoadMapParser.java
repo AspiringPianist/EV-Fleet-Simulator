@@ -98,7 +98,7 @@ public class RoadMapParser {
                 String signalCellValue = signalGrid.get(i)[j];
                 if (!cellValue.equals("0")) {
                     Node currentNode;
-                    if(!signalCellValue.equals("0") && (signalCellValue.equals("1") || signalCellValue.equals("2"))) {
+                    if(!signalCellValue.equals("0")) {
                         currentNode = getOrCreateNode(i + 1, j + 1, "TrafficNode", Integer.parseInt(signalCellValue)-1);
                         System.out.println("Traffic Node is " +  currentNode.type);
                         // if(!currentNode.type.equals("Node")) {
@@ -120,7 +120,7 @@ public class RoadMapParser {
                     for (int[] coord : coordinates) {
                         String destSignalValue = signalGrid.get(coord[0]-1)[coord[1]-1];
                         Node destNode;
-                        if(!destSignalValue.equals("0") && (destSignalValue.equals("1") || destSignalValue.equals("2"))) {
+                        if(!destSignalValue.equals("0")) {
                             destNode = getOrCreateNode(coord[0], coord[1], "TrafficNode", Integer.parseInt(destSignalValue)-1);
                             //System.out.println("Traffic Node neighbor is " +  destNode.type);
                         } else {
