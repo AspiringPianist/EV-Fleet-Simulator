@@ -86,7 +86,7 @@ public class GameMap {
     }
 
     public Node getRoadNode(int x, int y) {
-        return roadNetwork.get((x + 1) + "," + (y + 1));
+        return roadNetwork.get((x) + "," + (y));
     }
 
     public TrafficNode getTrafficNode(int x, int y) {

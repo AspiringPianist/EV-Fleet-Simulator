@@ -121,11 +121,11 @@ public class TerminalSimulation {
                 if (symbol.equals("   ")) {
                     TrafficNode trafficNode = gameMap.getTrafficNode(i, j);
                     if (trafficNode != null) {
-                        String queueInfo = trafficNode.getDeque().isEmpty() ? "" : 
-                            String.format("%d", trafficNode.getDeque().size());
+                        //String queueInfo = trafficNode.getDeque().isEmpty() ? "" : 
+                           // String.format("%d", trafficNode.getDeque().size());
                         symbol = (trafficNode.isGreen() ? 
-                            ANSI_GREEN + "[T" + queueInfo + "]" : 
-                            ANSI_RED + "[T" + queueInfo + "]") + ANSI_RESET;
+                            ANSI_GREEN + "[T" + "]" : 
+                            ANSI_RED + "[T" + "]") + ANSI_RESET;
                     } else if (gameMap.isWalkable(i, j)) {
                         symbol = "[ ]";
                     }
@@ -136,6 +136,7 @@ public class TerminalSimulation {
             System.out.println();
         }
         System.out.println("EV 1 position:" + evController.getEvMap().get("EV1").getCurrentX() + "," + evController.getEvMap().get("EV1").getCurrentY() + " EV 2 position:" + evController.getEvMap().get("EV2").getCurrentX() + "," + evController.getEvMap().get("EV2").getCurrentY());
+        //System.out.println("EV 1 stalled status:" + gameMap.getRoadNode(evController.getEvMap().get("EV1").getCurrentX(),evController.getEvMap().get("EV1").getCurrentY()).isStalled());
 
         //System.out.flush();
     }

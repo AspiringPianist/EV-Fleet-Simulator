@@ -4,7 +4,7 @@ import java.util.*;
 
 class Node {
     int x, y;
-
+    private boolean stalled;
     List<Node> neighbors;
     public String type;
     //TODO
@@ -17,7 +17,7 @@ class Node {
         this.neighbors = new ArrayList<>();
         this.stalled = false;
     }
-    private boolean stalled;
+    
 
     public boolean isStalled() {
         return stalled;

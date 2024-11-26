@@ -87,13 +87,13 @@ public ResponseEntity<?> updateEVPosition(@PathVariable String evName) {
 //     }
 // }
 
-@GetMapping("/traffic/signals")
-public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
-    List<TrafficSignalState> states = TrafficManager.trafficLights.stream()
-        .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen(), node.getDeque().size()))
-        .collect(Collectors.toList());
-    return ResponseEntity.ok(states);
-}
+// @GetMapping("/traffic/signals")
+// public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
+//     List<TrafficSignalState> states = TrafficManager.trafficLights.stream()
+//         .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen(), node.getDeque().size()))
+//         .collect(Collectors.toList());
+//     return ResponseEntity.ok(states);
+// }
 
 
     @PostMapping("/{evName}/start")
@@ -111,7 +111,7 @@ public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
     }
     @PostMapping("/traffic/change")
     public ResponseEntity<Void> changeTrafficSignals() {
-        trafficManager.changeSignals();
+        TrafficManager.changeSignals();
         return ResponseEntity.ok().build();
     }
 

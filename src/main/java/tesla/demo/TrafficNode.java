@@ -5,11 +5,11 @@ public class TrafficNode extends Node{
     // static ArrayList<ArrayList<Node>> trafficLights; //array of pairs of traffic
     private int signal;
     public int group;
-    public Deque<EV> trafficNodeDeque;
+    //public Deque<EV> trafficNodeDeque;
     public TrafficNode(int x,int y,String type,int trafficType){
         super(x,y,type);
         this.signal=trafficType;
-        trafficNodeDeque=new LinkedList<>();
+        //trafficNodeDeque=new LinkedList<>();
     }
     //green --1
     //red --0
@@ -22,12 +22,12 @@ public class TrafficNode extends Node{
             signal=0;
         }
     }
-    public void addToDeque(EV ev){
-        trafficNodeDeque.add(ev);
-    }
-    public Deque<EV> getDeque(){
-        return this.trafficNodeDeque;
-    }
+    // public void addToDeque(EV ev){
+    //     trafficNodeDeque.add(ev);
+    // }
+    // public Deque<EV> getDeque(){
+    //     return this.trafficNodeDeque;
+    // }
     public boolean isGreen() {
         // return this.signal ==1;
         if(this.signal==1){
