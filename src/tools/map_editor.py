@@ -43,6 +43,8 @@ class RoadMapEditor:
         self.signal_type = tk.StringVar(value="1")
         ttk.Radiobutton(self.toolbar, text="Signal Type 1", variable=self.signal_type, value="1").pack(side='left', padx=5)
         ttk.Radiobutton(self.toolbar, text="Signal Type 2", variable=self.signal_type, value="2").pack(side='left', padx=5)
+        ttk.Radiobutton(self.toolbar, text="Signal Type 3", variable=self.signal_type, value="3").pack(side='left', padx=5)
+        ttk.Radiobutton(self.toolbar, text="Signal Type 4", variable=self.signal_type, value="4").pack(side='left', padx=5)
         ttk.Radiobutton(self.toolbar, text="Place Signals", variable=self.mode, value="signal").pack(side='left', padx=5)
 
         
@@ -99,7 +101,7 @@ class RoadMapEditor:
 
 
     def save_map(self):
-        with open('src/main/resources/static/map.csv', 'w', newline='') as file:
+        with open('map.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             for i in range(self.grid_size):
                 row = []
@@ -123,7 +125,7 @@ class RoadMapEditor:
         filepath = filedialog.askopenfilename(
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-            initialdir="src/main/resources/static"
+            initialdir="./"
         )
         if filepath:
             self.connections.clear()
@@ -137,7 +139,7 @@ class RoadMapEditor:
                                 key = f"{i+1},{j+1}"
                                 self.connections[key] = coords
             try:
-                with open('src/main/resources/static/signals.csv', 'r') as file:
+                with open('signals.csv', 'r') as file:
                     reader = csv.reader(file)
                     for i, row in enumerate(reader):
                         for j, cell in enumerate(row):
@@ -246,8 +248,16 @@ class RoadMapEditor:
         for pos, signal_type in self.signals.items():
             x = (pos[1] - 1) * self.cell_size
             y = (pos[0] - 1) * self.cell_size
-            color = 'green' if signal_type == '1' else 'orange'
-            
+            if signal_type == '1':
+                color = 'green'
+            elif signal_type == '2':
+                color = 'orange'
+            elif signal_type == '3':
+                color = 'red'
+            elif signal_type == '4':
+                color = 'blue'
+            else:
+                color = 'gray'  # Default color for unknown types
             # Draw signal background
             self.canvas.create_rectangle(
                 x, y, x + self.cell_size, y + self.cell_size,
