@@ -1,72 +1,52 @@
 package tesla.demo;
+// Import statements
 import java.io.*;
 import java.util.*;
 
-class Node {
-    int x, y;
-    private boolean stalled;
-    List<Node> neighbors;
-    public String type;
-    //TODO
-    // is stop location
-    // is it red
-    public Node(int x, int y,String type) {
-        this.x = x;
-        this.y = y;
-        this.type=type;
-        this.neighbors = new ArrayList<>();
-        this.stalled = false;
-    }
-    
-
-    public boolean isStalled() {
-        return stalled;
-    }
-
-    public void setStalled(boolean stalled) {
-        this.stalled = stalled;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Node node = (Node) o;
-        return x == node.x && y == node.y;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(x, y);
-    }
-
-    @Override
-    public String toString() {
-        return "(" + x + "," + y + ")";
-    }
-}
-
+/**
+ * A parser class for generating a road map graph based on CSV files.
+ * The class parses a map CSV and a signal CSV to create a network of nodes
+ * and edges, where some nodes can be traffic nodes with associated signals.
+ */
 public class RoadMapParser {
     private Map<String, Node> nodes; // Key: "x,y", Value: Node
-    private int rows;
-    private int cols;
+    private int rows; // Number of rows in the map grid
+    private int cols; // Number of columns in the map grid
 
-    public int getRows() {
-        return this.rows;
-    }
-
-    public int getCols() {
-        return this.cols;
-    }
-
+    /**
+     * Constructor to initialize the RoadMapParser with an empty node map.
+     */
     public RoadMapParser() {
         this.nodes = new HashMap<>();
     }
 
+    /**
+     * Gets the number of rows in the grid.
+     * @return The number of rows.
+     */
+    public int getRows() {
+        return this.rows;
+    }
+
+    /**
+     * Gets the number of columns in the grid.
+     * @return The number of columns.
+     */
+    public int getCols() {
+        return this.cols;
+    }
+
+    /**
+     * Parses the map and signal CSV files to construct the road network graph.
+     * @param filePath Path to the map CSV file.
+     * @param signalMapPath Path to the signal CSV file.
+     * @throws IOException If an error occurs while reading the files.
+     */
     public void parseCSV(String filePath, String signalMapPath) throws IOException {
         List<String[]> grid = new ArrayList<>();
         List<String[]> signalGrid = new ArrayList<>();
         
+        // Read map CSV
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -78,6 +58,7 @@ public class RoadMapParser {
             }
         }
         
+        // Read signal CSV
         try (BufferedReader br = new BufferedReader(new FileReader(signalMapPath))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -89,63 +70,51 @@ public class RoadMapParser {
             }
         }
         
+        // Initialize grid dimensions
         this.rows = grid.size();
         this.cols = grid.get(0).length;
-    
+
+        // Construct nodes and edges
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 String cellValue = grid.get(i)[j];
                 String signalCellValue = signalGrid.get(i)[j];
                 if (!cellValue.equals("0")) {
                     Node currentNode;
-                    if(!signalCellValue.equals("0")) {
-                        currentNode = getOrCreateNode(i + 1, j + 1, "TrafficNode", Integer.parseInt(signalCellValue)-1);
-                        System.out.println("Traffic Node is " +  currentNode.type);
-                        // if(!currentNode.type.equals("Node")) {
-                        //     System.out.println("AHHAHAHAHHAHHAAH");
-                        // }
-                        // else {
-                        //     currentNode.type = "Node";
-                        // }
+                    if (!signalCellValue.equals("0")) {
+                        currentNode = getOrCreateNode(i + 1, j + 1, "TrafficNode", Integer.parseInt(signalCellValue) - 1);
                     } else {
                         currentNode = getOrCreateNode(i + 1, j + 1, "Node", -1);
-                        // System.out.println("Current Node is " +  currentNode.type);
-                        // if(!currentNode.type.equals("TrafficNode")) {
-                        //     System.out.println("AHHAHAHAHHAHHAAH");
-                        // }
-
                     }
                     
+                    // Parse and connect neighbors
                     List<int[]> coordinates = parseCoordinates(cellValue);
                     for (int[] coord : coordinates) {
-                        String destSignalValue = signalGrid.get(coord[0]-1)[coord[1]-1];
+                        String destSignalValue = signalGrid.get(coord[0] - 1)[coord[1] - 1];
                         Node destNode;
-                        if(!destSignalValue.equals("0")) {
-                            destNode = getOrCreateNode(coord[0], coord[1], "TrafficNode", Integer.parseInt(destSignalValue)-1);
-                            //System.out.println("Traffic Node neighbor is " +  destNode.type);
+                        if (!destSignalValue.equals("0")) {
+                            destNode = getOrCreateNode(coord[0], coord[1], "TrafficNode", Integer.parseInt(destSignalValue) - 1);
                         } else {
                             destNode = getOrCreateNode(coord[0], coord[1], "Node", -1);
-                            //System.out.println(" Node neighbor is " +  destNode.type);
-
                         }
                         currentNode.neighbors.add(destNode);
                     }
                 }
             }
         }
-        }
-    
+    }
 
+    /**
+     * Parses coordinate strings and converts them into a list of integer arrays.
+     * @param cellValue The cell value containing coordinates.
+     * @return A list of coordinate pairs as integer arrays.
+     */
     private List<int[]> parseCoordinates(String cellValue) {
         List<int[]> coordinates = new ArrayList<>();
-        
-        // Split by parentheses if they exist, or treat as single coordinate
         String[] parts = cellValue.split("\\),\\(|\\(|\\)");
         
         for (String part : parts) {
             if (part.isEmpty()) continue;
-            
-            // Split the coordinate pair
             String[] coords = part.split(",");
             if (coords.length >= 2) {
                 try {
@@ -153,16 +122,21 @@ public class RoadMapParser {
                     int y = Integer.parseInt(coords[1].trim());
                     coordinates.add(new int[]{x, y});
                 } catch (NumberFormatException e) {
-                    // Skip invalid number formats
                     continue;
                 }
             }
         }
-        
         return coordinates;
     }
-    
 
+    /**
+     * Retrieves or creates a node with the given coordinates and type.
+     * @param x The x-coordinate of the node.
+     * @param y The y-coordinate of the node.
+     * @param type The type of the node ("Node" or "TrafficNode").
+     * @param trafficType The traffic type for traffic nodes.
+     * @return The retrieved or newly created node.
+     */
     private Node getOrCreateNode(int x, int y, String type, int trafficType) {
         String key = x + "," + y;
         if (type.equals("TrafficNode")) {
@@ -174,6 +148,10 @@ public class RoadMapParser {
         }
         return nodes.computeIfAbsent(key, k -> new Node(x, y, type));
     }
+
+    /**
+     * Prints the entire road network graph with nodes and their neighbors.
+     */
     public void printGraph() {
         System.out.println("Road Network Graph:");
         List<Node> sortedNodes = new ArrayList<>(nodes.values());
@@ -188,27 +166,50 @@ public class RoadMapParser {
         }
     }
 
-    // Method to get a specific node
+    /**
+     * Retrieves a node at the given coordinates.
+     * @param x The x-coordinate.
+     * @param y The y-coordinate.
+     * @return The node at the specified coordinates, or null if not found.
+     */
     public Node getNode(int x, int y) {
         String key = x + "," + y;
         return nodes.get(key);
     }
+
+    /**
+     * Retrieves a traffic node at the given coordinates.
+     * @param x The x-coordinate.
+     * @param y The y-coordinate.
+     * @return The traffic node, or null if not a traffic node.
+     */
     public TrafficNode getTrafficNode(int x, int y) {
         Node node = getNode(x, y);
         return (node instanceof TrafficNode) ? (TrafficNode) node : null;
     }
 
-    // Method to get all nodes
+    /**
+     * Retrieves all nodes in the network.
+     * @return A collection of all nodes.
+     */
     public Collection<Node> getAllNodes() {
         return nodes.values();
     }
 
-    // Method to verify if a path exists between two nodes
+    /**
+     * Checks if a path exists between two nodes using DFS.
+     * @param start The starting node.
+     * @param end The destination node.
+     * @return True if a path exists, false otherwise.
+     */
     public boolean pathExists(Node start, Node end) {
         Set<Node> visited = new HashSet<>();
         return dfs(start, end, visited);
     }
 
+    /**
+     * Helper method for depth-first search to find a path.
+     */
     private boolean dfs(Node current, Node end, Set<Node> visited) {
         if (current.equals(end)) return true;
         visited.add(current);
@@ -221,17 +222,20 @@ public class RoadMapParser {
         return false;
     }
 
-    // Method to find all reachable nodes from a starting node
+    /**
+     * Finds all nodes reachable from a given starting node.
+     * @param start The starting node.
+     * @return A set of reachable nodes.
+     */
     public Set<Node> findReachableNodes(Node start) {
         Set<Node> reachable = new HashSet<>();
         dfsReachable(start, reachable);
         return reachable;
     }
 
-    public int totalNodes() {
-        return nodes.size();
-    }
-
+    /**
+     * Helper method for depth-first search to find reachable nodes.
+     */
     private void dfsReachable(Node current, Set<Node> visited) {
         visited.add(current);
         for (Node neighbor : current.neighbors) {
@@ -241,41 +245,34 @@ public class RoadMapParser {
         }
     }
 
+    /**
+     * Gets the total number of nodes in the network.
+     * @return The total node count.
+     */
+    public int totalNodes() {
+        return nodes.size();
+    }
+
+    /**
+     * Main method for testing the RoadMapParser.
+     */
     public static void main(String[] args) {
         RoadMapParser parser = new RoadMapParser();
         try {
             parser.parseCSV("src/main/resources/static/map.csv", "src/main/resources/static/signal.csv");
             parser.printGraph();
             
-            // Example of finding path between two nodes
             Node start = parser.getNode(2, 2);
-            Node end = parser.getNode(34, 34);
+            Node end = parser.getNode(2, 1);
+            
             if (start != null && end != null) {
-                boolean pathExists = parser.pathExists(start, end);
-                System.out.println("\nPath exists from (2,2) to (34,34): " + pathExists);
-                
-                // Print reachable nodes from start
-                Set<Node> reachable = parser.findReachableNodes(start);
-                System.out.println("\nNumber of reachable nodes from (2,2): " + reachable.size());
-            }
-            // Print total number of nodes
-            System.out.println("\nTotal number of nodes: " + parser.totalNodes());
-            //check if all nodes are reachable from any node
-            boolean allNodesReachable = true;
-            for (Node node : parser.getAllNodes()) {
-                Set<Node> reachableNodes = parser.findReachableNodes(node);
-                    if(reachableNodes.size()!=parser.totalNodes()) {
-                        allNodesReachable=false;
-                    }
-                }
-            if(allNodesReachable)
-            System.out.println("All nodes are reachable from any node: " + allNodesReachable);
-            else{
-                System.out.println("All nodes are not reachable from any node: " + allNodesReachable);
+                System.out.println("Path exists between " + start + " and " + end + ": " + parser.pathExists(start, end));
+                System.out.println("Reachable nodes from " + start + ": " + parser.findReachableNodes(start));
             }
             
+            System.out.println("Total nodes in the map: " + parser.totalNodes());
         } catch (IOException e) {
-            System.err.println("Error reading CSV file: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

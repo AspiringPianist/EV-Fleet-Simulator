@@ -1,77 +1,81 @@
 package tesla.demo;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.http.ResponseEntity;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.concurrent.*;
-import java.util.UUID;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
 
+/**
+ * REST Controller for managing Electric Vehicles (EVs).
+ * Provides endpoints for creating, updating, and monitoring EVs.
+ */
 @RestController
 @RequestMapping("/api/ev")
 public class EVController {
-    public Map<String, EV> evMap;
+    public static Map<String, EV> evMap;
     private PathfindingVisualizer pathfinder;
     private TrafficManager trafficManager;
-    private ScheduledExecutorService scheduler;
 
+    /**
+     * Constructor for EVController.
+     * Initializes the EV map, pathfinding visualizer, and traffic manager.
+     */
     public EVController() {
         evMap = new HashMap<>();
         pathfinder = new PathfindingVisualizer(GameMap.getInstance());
         trafficManager = new TrafficManager();
     }
+    
+
+    /**
+     * Creates a new EV and assigns it a path.
+     *
+     * @param request The request payload containing EV details.
+     * @return ResponseEntity with the created EV object.
+     */
     @PostMapping("/new")
-public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
-    EV ev = new EV(
-        request.getStartX(), 
-        request.getStartY(), 
-        request.getType(),
-        request.getCharge(),
-        request.getChargingRate()
-    );
-    ev.setEndLocation(request.getEndX(), request.getEndY());
-    ev.setName(request.getName());
-    
-    // Calculate path and print raw coordinates
-    long[] pathArray = pathfinder.findPath(
-        ev.getStartX(),
-        ev.getStartY(),
-        ev.getEndX(),
-        ev.getEndY()
-    );
-    
-    // Print raw path array
-    StringBuilder rawPath = new StringBuilder("Raw path array: ");
-    for (int i = 0; i < pathArray.length; i += 2) {
-        rawPath.append("(").append(pathArray[i]).append(",").append(pathArray[i+1]).append(") ");
+    public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
+        EV ev = new EV(
+            request.getStartX(),
+            request.getStartY(),
+            request.getType(),
+            request.getCharge(),
+            request.getChargingRate()
+        );
+        ev.setEndLocation(request.getEndX(), request.getEndY());
+        ev.setName(request.getName());
+
+        // Calculate and set the path for the EV.
+        long[] pathArray = pathfinder.findPath(
+            ev.getStartX(),
+            ev.getStartY(),
+            ev.getEndX(),
+            ev.getEndY()
+        );
+        List<PathNode> path = convertToPathNodes(pathArray);
+        ev.setPath(path);
+
+        evMap.put(ev.getName(), ev);
+        return ResponseEntity.ok(ev);
     }
-    System.out.println(rawPath.toString());
-    
-    // Convert and set path
-    List<PathNode> path = convertToPathNodes(pathArray);
-    
-    // Print converted path
-    StringBuilder convertedPath = new StringBuilder("Converted path: ");
-    for (PathNode node : path) {
-        convertedPath.append("(").append(node.getX()).append(",").append(node.getY()).append(") ");
-    }
-    System.out.println(convertedPath.toString());
-    
-    ev.setPath(path);
-    evMap.put(ev.getName(), ev);
-    return ResponseEntity.ok(ev);
-}
+
+    /**
+     * Checks if an EV can move to a specified position.
+     *
+     * @param evName The name of the EV.
+     * @param x      Target x-coordinate.
+     * @param y      Target y-coordinate.
+     * @return ResponseEntity with a boolean indicating if the EV can move.
+     */
     @PostMapping("/{evName}/canMoveToPosition/{x}/{y}")
     public ResponseEntity<Boolean> canMoveToPosition(
             @PathVariable String evName,
@@ -79,15 +83,6 @@ public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
             @PathVariable int y) {
         EV ev = evMap.get(evName);
         if (ev != null) {
-            // Print path coordinates in a readable format
-            StringBuilder pathStr = new StringBuilder("Path coordinates: ");
-            for (PathNode node : ev.getPath()) {
-                pathStr.append("(").append(node.getX()).append(",").append(node.getY()).append(") ");
-            }
-            System.out.println(pathStr.toString());
-            System.out.println("Current index: " + ev.getCurrentPathIndex());
-            System.out.println("Attempting to move to (" + x + "," + y + ")");
-    
             if (ev.getCurrentPathIndex() + 1 < ev.getPath().size()) {
                 PathNode nextNode = ev.getPath().get(ev.getCurrentPathIndex() + 1);
                 if (nextNode.getX() == x && nextNode.getY() == y) {
@@ -99,188 +94,122 @@ public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
         }
         return ResponseEntity.notFound().build();
     }
+
+    /**
+     * Retrieves a list of all EVs.
+     *
+     * @return ResponseEntity containing a list of all EVs.
+     */
     @GetMapping("/all")
     public ResponseEntity<List<EV>> getAllEVs() {
-        List<EV> evList = new ArrayList<>(evMap.values());
-        return ResponseEntity.ok(evList);
+        return ResponseEntity.ok(new ArrayList<>(evMap.values()));
     }
-    
 
+    /**
+     * Starts an EV's movement along its path.
+     *
+     * @param evName The name of the EV.
+     * @return ResponseEntity containing the EV's path.
+     */
     @PostMapping("/{evName}/start")
-public ResponseEntity<List<PathNode>> startEV(@PathVariable String evName) {
-    EV ev = evMap.get(evName);
-    if (ev != null) {
-        ev.setMoving(true);
-        return ResponseEntity.ok(ev.getPath());
-    }
-    return ResponseEntity.notFound().build();
-}
-//     @PostMapping("/new")
-//     public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
-//         EV ev = new EV(
-//             request.getStartX(), 
-//             request.getStartY(), 
-//             request.getType(),
-//             request.getCharge(),
-//             request.getChargingRate()
-//         );
-//         ev.setEndLocation(request.getEndX(), request.getEndY());
-//         ev.setName(request.getName());
-        
-//         // Calculate and store path immediately
-//         long[] pathArray = pathfinder.findPath(
-//             ev.getStartX(),
-//             ev.getStartY(),
-//             ev.getEndX(),
-//             ev.getEndY()
-//         );
-//         List<PathNode> path = convertToPathNodes(pathArray);
-//         ev.setPath(path);
-        
-//         evMap.put(ev.getName(), ev);
-//         return ResponseEntity.ok(ev);
-//     }
-    public Map<String, EV> getEvMap() {
-        return this.evMap;
+    public ResponseEntity<List<PathNode>> startEV(@PathVariable String evName) {
+        EV ev = evMap.get(evName);
+        if (ev != null) {
+            ev.setMoving(true);
+            return ResponseEntity.ok(ev.getPath());
+        }
+        return ResponseEntity.notFound().build();
     }
 
+    /**
+     * Deletes an EV.
+     *
+     * @param evName The name of the EV to delete.
+     * @return ResponseEntity indicating the result of the operation.
+     */
     @DeleteMapping("/{evName}")
-public ResponseEntity<Void> deleteEV(@PathVariable String evName) {
-    if (evMap.containsKey(evName)) {
-        evMap.remove(evName);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Void> deleteEV(@PathVariable String evName) {
+        if (evMap.containsKey(evName)) {
+            evMap.remove(evName);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
-    return ResponseEntity.notFound().build();
-}
 
-@PostMapping("/{evName}/stop")
-public ResponseEntity<Void> stopEV(@PathVariable String evName) {
-    EV ev = evMap.get(evName);
-    if (ev != null) {
-        // Add any stop logic here
-        return ResponseEntity.ok().build();
+    /**
+     * Updates an EV's position to the next point on its path.
+     *
+     * @param evName The name of the EV.
+     * @return ResponseEntity indicating the result of the operation.
+     */
+    @PostMapping("/{evName}/updatePosition")
+    public ResponseEntity<Void> updateEVPosition(@PathVariable String evName) {
+        EV ev = evMap.get(evName);
+        if (ev != null && ev.isMoving() && ev.getCurrentPathIndex() < ev.getPath().size() - 1) {
+            ev.currentPathIndex++;
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
-    return ResponseEntity.notFound().build();
-}
 
-@GetMapping("/{evName}/status")
-public ResponseEntity<EVStatus> getEVStatus(@PathVariable String evName) {
-    EV ev = evMap.get(evName);
-    if (ev != null) {
-        EVStatus status = new EVStatus(
-            ev.getCharge(),
-            ev.getCurrentX(),
-            ev.getCurrentY()
+    /**
+     * Retrieves the status of an EV.
+     *
+     * @param evName The name of the EV.
+     * @return ResponseEntity containing the EV's status.
+     */
+    @GetMapping("/{evName}/status")
+    public ResponseEntity<EVStatus> getEVStatus(@PathVariable String evName) {
+        EV ev = evMap.get(evName);
+        if (ev != null) {
+            return ResponseEntity.ok(new EVStatus(
+                ev.getCharge(),
+                ev.getCurrentX(),
+                ev.getCurrentY()
+            ));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Converts a raw path array to a list of PathNode objects.
+     *
+     * @param path The raw path array.
+     * @return List of PathNode objects.
+     */
+    private List<PathNode> convertToPathNodes(long[] path) {
+        List<PathNode> nodes = new ArrayList<>();
+        for (int i = 0; i < path.length; i += 2) {
+            nodes.add(new PathNode((int) path[i], (int) path[i + 1]));
+        }
+        return nodes;
+    }
+
+    /**
+     * Retrieves the traffic signal states.
+     *
+     * @return ResponseEntity containing a list of traffic signal states.
+     */
+    @GetMapping("/traffic/signals")
+    public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
+        return ResponseEntity.ok(
+            TrafficManager.trafficLights.stream()
+                .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen()))
+                .collect(Collectors.toList())
         );
-        return ResponseEntity.ok(status);
     }
-    return ResponseEntity.notFound().build();
-}
 
-
-private List<PathNode> convertToPathNodes(long[] path) {
-    List<PathNode> nodes = new ArrayList<>();
-    
-    System.out.println("Converting path coordinates:");
-    for (int i = 0; i < path.length; i += 2) {
-        int x = (int)path[i];
-        int y = (int)path[i+1];
-        
-        // Ensure coordinates are within map bounds
-        x = Math.min(Math.max(x, 0), GameMap.getInstance().getWidth() - 1);
-        y = Math.min(Math.max(y, 0), GameMap.getInstance().getHeight() - 1);
-        
-        System.out.printf("(%d,%d) ", x, y);
-        nodes.add(new PathNode(x, y));
-    }
-    System.out.println();
-    
-    return nodes;
-}
-@PostMapping("/{evName}/updatePosition")
-public ResponseEntity<Void> updateEVPosition(@PathVariable String evName) {
-    EV ev = evMap.get(evName);
-    if (ev != null && ev.isMoving() && ev.getCurrentPathIndex() < ev.getPath().size() - 1) {
-        ev.currentPathIndex++;
-        PathNode newPos = ev.getPath().get(ev.getCurrentPathIndex());
-        System.out.println("Updated " + evName + " position to index: " + 
-                          ev.getCurrentPathIndex() + " at (" + newPos.getX() + 
-                          "," + newPos.getY() + ")");
-        return ResponseEntity.ok().build();
-    }
-    return ResponseEntity.notFound().build();
-}
-@GetMapping("/traffic/signals")
-public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
-    List<TrafficSignalState> states = TrafficManager.trafficLights.stream()
-        .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen()))
-        .collect(Collectors.toList());
-    return ResponseEntity.ok(states);
-}
+    /**
+     * Changes the state of traffic signals.
+     *
+     * @return ResponseEntity indicating the result of the operation.
+     */
     @PostMapping("/traffic/change")
     public ResponseEntity<Void> changeTrafficSignals() {
         TrafficManager.changeSignals();
         return ResponseEntity.ok().build();
     }
 }
-//     @PostMapping("/{evName}/canMove")
-// public ResponseEntity<?> canEVMove(@PathVariable String evName) {
-//     try {
-//         EV ev = evMap.get(evName);
-//         System.out.println("Checking movement for EV: " + evName);
-//         System.out.println("Current position: (" + ev.getPath().get(ev.currentPathIndex).getX() + 
-//                           "," + ev.getPath().get(ev.currentPathIndex).getY() + ")");
-//         System.out.println("Current path index: " + ev.currentPathIndex);
-
-//         boolean canMove = trafficManager.canEVMove(ev);
-//         System.out.println("Movement decision for " + evName + ": " + canMove);
-//         return ResponseEntity.ok(canMove);
-//     } catch (Exception e) {
-//         System.err.println("Error in canMove endpoint: " + e.getMessage());
-//         e.printStackTrace();
-//         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-//     }
-// }
-
-
-
-//     @PostMapping("/{evName}/start")
-//     public List<PathNode> startEV(@PathVariable String evName) {
-//         EV ev = evMap.get(evName);
-//         if (ev == null) {
-//             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "EV not found");
-//         }
-//         return ev.getPath(); // Return the pre-calculated path
-//     }
-//     @GetMapping("/all")
-//     public ResponseEntity<List<EV>> getAllEVs() {
-//         List<EV> evList = new ArrayList<>(evMap.values());
-//         return ResponseEntity.ok(evList);
-//     }
-
-//     @PostMapping("/{evName}/canMoveToPosition/{targetX}/{targetY}")
-// public ResponseEntity<Boolean> canMoveToPosition(
-//     @PathVariable String evName,
-//     @PathVariable int targetX, 
-//     @PathVariable int targetY
-// ) {
-//     try {
-//         EV ev = evMap.get(evName);
-//         if (ev == null) {
-//             return ResponseEntity.notFound().build();
-//         }
-        
-//         System.out.println("Checking movement for EV: " + evName + " to position: (" + targetX + "," + targetY + ")");
-//         boolean canMove = trafficManager.canMoveToPosition(ev, targetX, targetY);
-//         System.out.println("Movement decision: " + canMove);
-        
-//         return ResponseEntity.ok(canMove);
-//     } catch (Exception e) {
-//         System.err.println("Error checking movement: " + e.getMessage());
-//         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-//     }
-// }
-
 
 class EVCreateRequest {
     private String name;
@@ -331,4 +260,3 @@ class TrafficSignalState {
         //this.queueSize = queueSize;
     }
 }
-

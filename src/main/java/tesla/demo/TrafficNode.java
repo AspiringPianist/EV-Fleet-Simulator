@@ -1,53 +1,80 @@
 package tesla.demo;
-// import java.util.*;
 import java.util.*;
-public class TrafficNode extends Node{
-    // static ArrayList<ArrayList<Node>> trafficLights; //array of pairs of traffic
-    private int signal;
-    public int group;
-    //public Deque<EV> trafficNodeDeque;
-    public TrafficNode(int x,int y,String type,int trafficType){
-        super(x,y,type);
-        this.signal=trafficType;
-        //trafficNodeDeque=new LinkedList<>();
+
+/**
+ * The TrafficNode class represents a traffic node in a road map, 
+ * capable of managing traffic signals and identifying paired nodes.
+ * It extends the Node class and adds functionality for signal management 
+ * and traffic control.
+ */
+public class TrafficNode extends Node {
+    private int signal; // Current signal state (e.g., 0 for green, others for red)
+    public int group; // Group identifier for the traffic node
+
+    /**
+     * Constructor to initialize a TrafficNode with coordinates, type, and signal state.
+     *
+     * @param x The x-coordinate of the node.
+     * @param y The y-coordinate of the node.
+     * @param type The type of the node ("TrafficNode").
+     * @param trafficType The initial signal state of the traffic node.
+     */
+    public TrafficNode(int x, int y, String type, int trafficType) {
+        super(x, y, type);
+        this.signal = trafficType;
     }
-    //green --1
-    //red --0
-    public void changeSignal(){
-        // signal=!signal;
-       signal= (signal+1)%4;
+
+    /**
+     * Toggles the signal state of the traffic node.
+     * The signal cycles through 0, 1, 2, and 3.
+     */
+    public void changeSignal() {
+        signal = (signal + 1) % 4;
     }
-    // public void addToDeque(EV ev){
-    //     trafficNodeDeque.add(ev);
-    // }
-    // public Deque<EV> getDeque(){
-    //     return this.trafficNodeDeque;
-    // }
+
+    /**
+     * Checks if the traffic signal is green (signal state 0).
+     *
+     * @return True if the signal is green, otherwise false.
+     */
     public boolean isGreen() {
-        // return this.signal ==1;
-        return this.signal==0;
+        return this.signal == 0;
     }
+
+    /**
+     * Checks if the traffic signal is red (any signal state other than 0).
+     *
+     * @return True if the signal is red, otherwise false.
+     */
     public boolean isRed() {
-        return this.signal!=0;
+        return this.signal != 0;
     }
-    
+
+    /**
+     * Finds the paired traffic node for the current node, if any.
+     * A pair is determined based on predefined coordinate offsets 
+     * and matching signal states.
+     *
+     * @param currentNode The current TrafficNode for which to find a pair.
+     * @return The paired TrafficNode if found, otherwise null.
+     */
     public TrafficNode get_pair(TrafficNode currentNode) {
-        Node pair_node;
-        List<int[]> coordinates = new ArrayList<>();
-        coordinates.add(new int[]{1, 3});
-        coordinates.add(new int[]{-3, 1});
-        coordinates.add(new int[]{-1, -3});
-        coordinates.add(new int[]{3, -1});
-        
-        for(int[] coord : coordinates) {
-            pair_node = GameMap.getInstance().getTrafficNode(x + coord[0], y + coord[1]);
-            if (pair_node instanceof TrafficNode && 
-                ((TrafficNode)pair_node).type.equals("TrafficNode") && 
-                ((TrafficNode)pair_node).signal == currentNode.signal) {
-                return (TrafficNode)pair_node;
+        Node pairNode;
+        List<int[]> coordinateOffsets = Arrays.asList(
+            new int[]{1, 3},
+            new int[]{-3, 1},
+            new int[]{-1, -3},
+            new int[]{3, -1}
+        );
+
+        for (int[] offset : coordinateOffsets) {
+            pairNode = GameMap.getInstance().getTrafficNode(x + offset[0], y + offset[1]);
+            if (pairNode instanceof TrafficNode &&
+                ((TrafficNode) pairNode).type.equals("TrafficNode") &&
+                ((TrafficNode) pairNode).signal == currentNode.signal) {
+                return (TrafficNode) pairNode;
             }
         }
         return null;
     }
-    
 }

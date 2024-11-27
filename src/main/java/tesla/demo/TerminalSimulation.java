@@ -1,7 +1,14 @@
-
 package tesla.demo;
 import java.util.ArrayList;
 import java.util.List;
+
+/**
+ * TerminalSimulation is a console-based simulation of electric vehicle (EV) movement 
+ * and traffic management in a grid-based game map.
+ * 
+ * This class provides a terminal visualization of EV navigation, traffic signals, 
+ * and movement constraints within a simulated environment.
+ */
 public class TerminalSimulation {
     private static final String ANSI_RED = "\u001B[31m";
     private static final String ANSI_GREEN = "\u001B[32m";
@@ -13,6 +20,12 @@ public class TerminalSimulation {
     private EVController evController;
     private volatile boolean running = true;
 
+    /**
+     * Constructor for TerminalSimulation.
+     * 
+     * Initializes the game map, traffic manager, and EV controller.
+     * Creates two test electric vehicles (EV1 and EV2) with predefined start and end locations.
+     */
     public TerminalSimulation() {
         gameMap = GameMap.getInstance();
         trafficManager = TrafficManager.getInstance();
@@ -27,10 +40,17 @@ public class TerminalSimulation {
         ev2.setName("EV2");
         ev2.setEndLocation(35, 2);
 
-        evController.getEvMap().put("EV1", ev1);
-        evController.getEvMap().put("EV2", ev2);
+        EVController.evMap.put("EV1", ev1);
+        EVController.evMap.put("EV2", ev2);
     }
 
+    /**
+     * Starts the simulation by initiating movement for both EVs 
+     * and continuously updating the map visualization.
+     * 
+     * The simulation runs in a loop, printing the map every 500 milliseconds
+     * until manually stopped or interrupted.
+     */
     public void start() {
         // Start both EVs immediately
         startEV("EV1");
@@ -48,8 +68,20 @@ public class TerminalSimulation {
         }
     }
 
+    /**
+     * Starts movement for a specific electric vehicle.
+     * 
+     * Performs the following steps:
+     * 1. Retrieves the EV from the EV controller
+     * 2. Uses PathfindingVisualizer to find the optimal path
+     * 3. Converts path coordinates to PathNodes
+     * 4. Sets the path for the EV
+     * 5. Initiates movement simulation
+     * 
+     * @param evName The name of the electric vehicle to start (e.g., "EV1")
+     */
     private void startEV(String evName) {
-        EV ev = evController.getEvMap().get(evName);
+        EV ev = EVController.evMap.get(evName);
         PathfindingVisualizer pathfinder = new PathfindingVisualizer(GameMap.getInstance());
         
         long[] pathArray = pathfinder.findPath(
@@ -65,6 +97,15 @@ public class TerminalSimulation {
         simulateEVMovement(evName);
     }
 
+    /**
+     * Converts a raw path array of coordinates to a list of PathNodes.
+     * 
+     * Performs coordinate validation to ensure they are within the game map bounds.
+     * Prints out each converted coordinate for debugging purposes.
+     * 
+     * @param path Array of long coordinates representing the path
+     * @return List of PathNodes representing the validated path
+     */
     private List<PathNode> convertToPathNodes(long[] path) {
         List<PathNode> nodes = new ArrayList<>();
         int maxDim = GameMap.getInstance().getWidth(); // Assuming square map
@@ -80,8 +121,17 @@ public class TerminalSimulation {
         return nodes;
     }
 
+    /**
+     * Simulates the movement of a specific electric vehicle along its predetermined path.
+     * 
+     * Runs in a separate thread to allow concurrent movement.
+     * Checks with TrafficManager for permission to move to the next position.
+     * Moves the EV one step at a time with a 500ms delay between steps.
+     * 
+     * @param evName The name of the electric vehicle to simulate movement for
+     */
     private void simulateEVMovement(String evName) {
-        EV ev = evController.getEvMap().get(evName);
+        EV ev = EVController.evMap.get(evName);
         new Thread(() -> {
             while (ev.isMoving() && ev.currentPathIndex < ev.getPath().size() - 1) {
                 PathNode nextPos = ev.getPath().get(ev.currentPathIndex + 1);
@@ -99,6 +149,17 @@ public class TerminalSimulation {
         }).start();
     }
 
+    /**
+     * Prints the current state of the game map to the console.
+     * 
+     * Renders the map with:
+     * - Column and row numbers
+     * - Electric vehicles in blue
+     * - Traffic nodes in green (go) or red (stop)
+     * - Empty walkable spaces
+     * 
+     * Also displays current positions of EVs at the bottom of the map.
+     */
     private void printMap() {
         clearScreen();
         System.out.println("=== Traffic Map ===\n");
@@ -117,7 +178,7 @@ public class TerminalSimulation {
                 String symbol = "   ";
                 
                 // Check for EVs first
-                for (EV ev : evController.getEvMap().values()) {
+                for (EV ev : EVController.evMap.values()) {
                     if (ev.getCurrentX() == i && ev.getCurrentY() == j) {
                         symbol = ANSI_BLUE + "[" + ev.getName().charAt(2) + "]" + ANSI_RESET;
                         break;
@@ -128,8 +189,6 @@ public class TerminalSimulation {
                 if (symbol.equals("   ")) {
                     TrafficNode trafficNode = gameMap.getTrafficNode(i, j);
                     if (trafficNode != null) {
-                        //String queueInfo = trafficNode.getDeque().isEmpty() ? "" : 
-                           // String.format("%d", trafficNode.getDeque().size());
                         symbol = (trafficNode.isGreen() ? 
                             ANSI_GREEN + "[T" + "]" : 
                             ANSI_RED + "[T" + "]") + ANSI_RESET;
@@ -142,17 +201,26 @@ public class TerminalSimulation {
             }
             System.out.println();
         }
-        System.out.println("EV 1 position:" + evController.getEvMap().get("EV1").getCurrentX() + "," + evController.getEvMap().get("EV1").getCurrentY() + " EV 2 position:" + evController.getEvMap().get("EV2").getCurrentX() + "," + evController.getEvMap().get("EV2").getCurrentY());
-        //System.out.println("EV 1 stalled status:" + gameMap.getRoadNode(evController.getEvMap().get("EV1").getCurrentX(),evController.getEvMap().get("EV1").getCurrentY()).isStalled());
-
-        //System.out.flush();
+        System.out.println("EV 1 position:" + EVController.evMap.get("EV1").getCurrentX() + "," + EVController.evMap.get("EV1").getCurrentY() + " EV 2 position:" + EVController.evMap.get("EV2").getCurrentX() + "," + EVController.evMap.get("EV2").getCurrentY());
     }
 
+    /**
+     * Clears the console screen for a clean map rendering.
+     * 
+     * Uses ANSI escape codes to reset the cursor and clear the screen.
+     */
     private void clearScreen() {
         System.out.print("\033[H\033[2J");
         System.out.flush();
     }
 
+    /**
+     * Main method to launch the terminal simulation.
+     * 
+     * Creates a new TerminalSimulation instance and starts the simulation.
+     * 
+     * @param args Command-line arguments (not used)
+     */
     public static void main(String[] args) {
         new TerminalSimulation().start();
     }
