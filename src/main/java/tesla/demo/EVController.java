@@ -32,29 +32,46 @@ public class EVController {
         trafficManager = new TrafficManager();
     }
     @PostMapping("/new")
-    public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
-        EV ev = new EV(
-            request.getStartX(), 
-            request.getStartY(), 
-            request.getType(),
-            request.getCharge(),
-            request.getChargingRate()
-        );
-        ev.setEndLocation(request.getEndX(), request.getEndY());
-        ev.setName(request.getName());
-        
-        long[] pathArray = pathfinder.findPath(
-            ev.getStartX(),
-            ev.getStartY(),
-            ev.getEndX(),
-            ev.getEndY()
-        );
-        List<PathNode> path = convertToPathNodes(pathArray);
-        ev.setPath(path);
-        
-        evMap.put(ev.getName(), ev);
-        return ResponseEntity.ok(ev);
+public ResponseEntity<EV> newEV(@RequestBody EVCreateRequest request) {
+    EV ev = new EV(
+        request.getStartX(), 
+        request.getStartY(), 
+        request.getType(),
+        request.getCharge(),
+        request.getChargingRate()
+    );
+    ev.setEndLocation(request.getEndX(), request.getEndY());
+    ev.setName(request.getName());
+    
+    // Calculate path and print raw coordinates
+    long[] pathArray = pathfinder.findPath(
+        ev.getStartX(),
+        ev.getStartY(),
+        ev.getEndX(),
+        ev.getEndY()
+    );
+    
+    // Print raw path array
+    StringBuilder rawPath = new StringBuilder("Raw path array: ");
+    for (int i = 0; i < pathArray.length; i += 2) {
+        rawPath.append("(").append(pathArray[i]).append(",").append(pathArray[i+1]).append(") ");
     }
+    System.out.println(rawPath.toString());
+    
+    // Convert and set path
+    List<PathNode> path = convertToPathNodes(pathArray);
+    
+    // Print converted path
+    StringBuilder convertedPath = new StringBuilder("Converted path: ");
+    for (PathNode node : path) {
+        convertedPath.append("(").append(node.getX()).append(",").append(node.getY()).append(") ");
+    }
+    System.out.println(convertedPath.toString());
+    
+    ev.setPath(path);
+    evMap.put(ev.getName(), ev);
+    return ResponseEntity.ok(ev);
+}
     @PostMapping("/{evName}/canMoveToPosition/{x}/{y}")
     public ResponseEntity<Boolean> canMoveToPosition(
             @PathVariable String evName,
@@ -62,8 +79,23 @@ public class EVController {
             @PathVariable int y) {
         EV ev = evMap.get(evName);
         if (ev != null) {
-            boolean canMove = trafficManager.canMoveToPosition(ev, x, y);
-            return ResponseEntity.ok(canMove);
+            // Print path coordinates in a readable format
+            StringBuilder pathStr = new StringBuilder("Path coordinates: ");
+            for (PathNode node : ev.getPath()) {
+                pathStr.append("(").append(node.getX()).append(",").append(node.getY()).append(") ");
+            }
+            System.out.println(pathStr.toString());
+            System.out.println("Current index: " + ev.getCurrentPathIndex());
+            System.out.println("Attempting to move to (" + x + "," + y + ")");
+    
+            if (ev.getCurrentPathIndex() + 1 < ev.getPath().size()) {
+                PathNode nextNode = ev.getPath().get(ev.getCurrentPathIndex() + 1);
+                if (nextNode.getX() == x && nextNode.getY() == y) {
+                    boolean canMove = trafficManager.canMoveToPosition(ev, x, y);
+                    return ResponseEntity.ok(canMove);
+                }
+            }
+            return ResponseEntity.ok(false);
         }
         return ResponseEntity.notFound().build();
     }
@@ -148,39 +180,67 @@ public ResponseEntity<EVStatus> getEVStatus(@PathVariable String evName) {
 
 private List<PathNode> convertToPathNodes(long[] path) {
     List<PathNode> nodes = new ArrayList<>();
-    int maxY = GameMap.getInstance().getHeight() - 1;
-    int maxX = GameMap.getInstance().getWidth() - 1;
+    GameMap gameMap = GameMap.getInstance();
+    int maxY = gameMap.getHeight() - 1; // Should be 34 for 35x35 map
+    int maxX = gameMap.getWidth() - 1;  // Should be 34 for 35x35 map
+    
+    System.out.println("Map dimensions: " + maxX + "x" + maxY);
     
     for (int i = 0; i < path.length; i += 2) {
-        // Mirror both X and Y coordinates to match terminal visualization
-        int mirroredX = maxX - (int)path[i];
-        int mirroredY = maxY - (int)path[i+1];
+        int originalX = (int)path[i];
+        int originalY = (int)path[i+1];
+        
+        // Ensure coordinates are within bounds
+        originalX = Math.min(Math.max(originalX, 0), maxX);
+        originalY = Math.min(Math.max(originalY, 0), maxY);
+        
+        // Mirror coordinates within map bounds
+        int mirroredX = maxX - originalX;
+        int mirroredY = maxY - originalY;
+        
+        // Final bounds check
+        mirroredX = Math.min(Math.max(mirroredX, 0), maxX);
+        mirroredY = Math.min(Math.max(mirroredY, 0), maxY);
+        
         nodes.add(new PathNode(mirroredX, mirroredY));
     }
+    
+    // Validate final path
+    for (PathNode node : nodes) {
+        if (node.getX() < 0 || node.getX() > maxX || 
+            node.getY() < 0 || node.getY() > maxY) {
+            System.out.println("Warning: Invalid coordinates detected: " + 
+                             "(" + node.getX() + "," + node.getY() + ")");
+        }
+    }
+    
     return nodes;
 }
-    @PostMapping("/{evName}/updatePosition")
-public ResponseEntity<?> updateEVPosition(@PathVariable String evName) {
+@PostMapping("/{evName}/updatePosition")
+public ResponseEntity<Void> updateEVPosition(@PathVariable String evName) {
     EV ev = evMap.get(evName);
-    if (ev != null) {
+    if (ev != null && ev.isMoving() && ev.getCurrentPathIndex() < ev.getPath().size() - 1) {
         ev.currentPathIndex++;
-        System.out.println("Updated " + evName + " position to index: " + ev.getCurrentPathIndex());
+        PathNode newPos = ev.getPath().get(ev.getCurrentPathIndex());
+        System.out.println("Updated " + evName + " position to index: " + 
+                          ev.getCurrentPathIndex() + " at (" + newPos.getX() + 
+                          "," + newPos.getY() + ")");
+        return ResponseEntity.ok().build();
     }
     return ResponseEntity.notFound().build();
 }
 @GetMapping("/traffic/signals")
 public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
-    int maxY = GameMap.getInstance().getHeight();
-    int maxX = GameMap.getInstance().getWidth();
-    
     List<TrafficSignalState> states = TrafficManager.trafficLights.stream()
-        .map(node -> new TrafficSignalState(
-            maxX - node.x, 
-            maxY - node.y, 
-            node.isGreen()))
+        .map(node -> new TrafficSignalState(node.x, node.y, node.isGreen()))
         .collect(Collectors.toList());
     return ResponseEntity.ok(states);
 }
+    @PostMapping("/traffic/change")
+    public ResponseEntity<Void> changeTrafficSignals() {
+        TrafficManager.changeSignals();
+        return ResponseEntity.ok().build();
+    }
 }
 //     @PostMapping("/{evName}/canMove")
 // public ResponseEntity<?> canEVMove(@PathVariable String evName) {
@@ -215,11 +275,6 @@ public ResponseEntity<List<TrafficSignalState>> getTrafficSignals() {
 //     public ResponseEntity<List<EV>> getAllEVs() {
 //         List<EV> evList = new ArrayList<>(evMap.values());
 //         return ResponseEntity.ok(evList);
-//     }
-//     @PostMapping("/traffic/change")
-//     public ResponseEntity<Void> changeTrafficSignals() {
-//         TrafficManager.changeSignals();
-//         return ResponseEntity.ok().build();
 //     }
 
 //     @PostMapping("/{evName}/canMoveToPosition/{targetX}/{targetY}")

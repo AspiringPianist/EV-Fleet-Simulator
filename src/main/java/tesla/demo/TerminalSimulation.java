@@ -67,8 +67,15 @@ public class TerminalSimulation {
 
     private List<PathNode> convertToPathNodes(long[] path) {
         List<PathNode> nodes = new ArrayList<>();
+        int maxDim = GameMap.getInstance().getWidth(); // Assuming square map
+        
         for (int i = 0; i < path.length; i += 2) {
-            nodes.add(new PathNode((int)path[i], (int)path[i+1]));
+            // Convert coordinates to match game map bounds (1 to maxDim)
+            int x = Math.min(Math.max((int)path[i], 1), maxDim);
+            int y = Math.min(Math.max((int)path[i+1], 1), maxDim);
+            
+            System.out.println("Converting path coordinate: (" + x + "," + y + ")");
+            nodes.add(new PathNode(x, y));
         }
         return nodes;
     }
