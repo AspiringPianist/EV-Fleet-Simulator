@@ -180,39 +180,20 @@ public ResponseEntity<EVStatus> getEVStatus(@PathVariable String evName) {
 
 private List<PathNode> convertToPathNodes(long[] path) {
     List<PathNode> nodes = new ArrayList<>();
-    GameMap gameMap = GameMap.getInstance();
-    int maxY = gameMap.getHeight() - 1; // Should be 34 for 35x35 map
-    int maxX = gameMap.getWidth() - 1;  // Should be 34 for 35x35 map
     
-    System.out.println("Map dimensions: " + maxX + "x" + maxY);
-    
+    System.out.println("Converting path coordinates:");
     for (int i = 0; i < path.length; i += 2) {
-        int originalX = (int)path[i];
-        int originalY = (int)path[i+1];
+        int x = (int)path[i];
+        int y = (int)path[i+1];
         
-        // Ensure coordinates are within bounds
-        originalX = Math.min(Math.max(originalX, 0), maxX);
-        originalY = Math.min(Math.max(originalY, 0), maxY);
+        // Ensure coordinates are within map bounds
+        x = Math.min(Math.max(x, 0), GameMap.getInstance().getWidth() - 1);
+        y = Math.min(Math.max(y, 0), GameMap.getInstance().getHeight() - 1);
         
-        // Mirror coordinates within map bounds
-        int mirroredX = maxX - originalX;
-        int mirroredY = maxY - originalY;
-        
-        // Final bounds check
-        mirroredX = Math.min(Math.max(mirroredX, 0), maxX);
-        mirroredY = Math.min(Math.max(mirroredY, 0), maxY);
-        
-        nodes.add(new PathNode(mirroredX, mirroredY));
+        System.out.printf("(%d,%d) ", x, y);
+        nodes.add(new PathNode(x, y));
     }
-    
-    // Validate final path
-    for (PathNode node : nodes) {
-        if (node.getX() < 0 || node.getX() > maxX || 
-            node.getY() < 0 || node.getY() > maxY) {
-            System.out.println("Warning: Invalid coordinates detected: " + 
-                             "(" + node.getX() + "," + node.getY() + ")");
-        }
-    }
+    System.out.println();
     
     return nodes;
 }
