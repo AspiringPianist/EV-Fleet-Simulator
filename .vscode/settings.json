@@ -6,5 +6,7 @@
     "files.associations": {
         "vector": "cpp",
         "utility": "cpp"
-    }
+    },
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.compile.nullAnalysis.mode": "automatic"
 }
